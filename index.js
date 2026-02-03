@@ -288,6 +288,28 @@ app.delete('/api/history', verifyToken, async (req, res) => {
 });
 
 
+// Diagnostic Route (Check API Key Health)
+app.get('/api/diag', async (req, res) => {
+    try {
+        const response = await fetch(`${process.env.GEMINI_API_URL}?key=${process.env.GEMINI_API_KEY}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: 'Ping' }] }]
+            })
+        });
+        const data = await response.json();
+        res.json({
+            status: response.status,
+            ok: response.ok,
+            model: process.env.GEMINI_API_URL.split('/').slice(-1)[0],
+            details: data
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // 2. Send Message & Get AI Response (Protected)
 app.post('/api/chat', verifyToken, async (req, res) => {
     const { text } = req.body;

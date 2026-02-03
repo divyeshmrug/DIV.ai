@@ -310,14 +310,37 @@ function addMessage(text, className) {
     const msgDiv = document.createElement('div');
     msgDiv.classList.add('message', className);
 
+    const textSpan = document.createElement('span');
     let formattedText = escapeHtml(text)
         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
         .replace(/`(.*?)`/g, '<code style="background:rgba(255,255,255,0.1);padding:2px 4px;border-radius:4px;">$1</code>')
         .replace(/\n/g, '<br>');
+    textSpan.innerHTML = formattedText;
+    msgDiv.appendChild(textSpan);
 
-    msgDiv.innerHTML = formattedText;
+    if (className === 'ai-message') {
+        const speakBtn = document.createElement('button');
+        speakBtn.className = 'speak-btn';
+        speakBtn.innerHTML = '🔊';
+        speakBtn.title = 'Listen to response';
+        speakBtn.onclick = () => speak(text);
+        msgDiv.appendChild(speakBtn);
+    }
+
     chatHistory.insertBefore(msgDiv, typingIndicator);
     scrollToBottom();
+}
+
+function speak(text) {
+    if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 1.0;
+        utterance.pitch = 1.0;
+        window.speechSynthesis.speak(utterance);
+    } else {
+        alert("Sorry, your browser does not support text-to-speech.");
+    }
 }
 
 function showTyping(show) {
