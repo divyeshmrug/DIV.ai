@@ -1,9 +1,8 @@
-```
 {
     "version": 2,
     "builds": [
         {
-            "main": "server.js",
+            "src": "server.js",
             "use": "@vercel/node"
         }
     ],
@@ -18,4 +17,3 @@
         }
     ]
 }
-```
