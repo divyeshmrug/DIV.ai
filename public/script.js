@@ -8,10 +8,14 @@ const typingIndicator = document.getElementById('typing-indicator');
 const authOverlay = document.getElementById('auth-overlay');
 const loginForm = document.getElementById('login-form');
 const registerForm = document.getElementById('register-form');
+const forgotForm = document.getElementById('forgot-form');
+const resetForm = document.getElementById('reset-form');
 const tabLogin = document.getElementById('tab-login');
 const tabRegister = document.getElementById('tab-register');
 const authError = document.getElementById('auth-error');
 const logoutBtn = document.getElementById('logout-btn');
+const linkForgot = document.getElementById('link-forgot');
+const linksBackLogin = document.querySelectorAll('.link-back-login');
 
 // Base URL for Backend
 const API_URL = '/api';
@@ -19,6 +23,7 @@ const API_URL = '/api';
 // Auth State
 let token = localStorage.getItem('token');
 let username = localStorage.getItem('username');
+let resetEmail = ''; // To store email during reset flow
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
@@ -44,6 +49,14 @@ function showAuth() {
     chatHistory.innerHTML = '<div class="message ai-message">Please login to start chatting.</div>';
 }
 
+function hideAllForms() {
+    loginForm.style.display = 'none';
+    registerForm.style.display = 'none';
+    forgotForm.style.display = 'none';
+    resetForm.style.display = 'none';
+    authError.style.display = 'none';
+}
+
 function handleError(err) {
     authError.innerText = err;
     authError.style.display = 'block';
@@ -52,18 +65,31 @@ function handleError(err) {
 
 // Tab Switching
 tabLogin.onclick = () => {
+    hideAllForms();
     tabLogin.classList.add('active');
     tabRegister.classList.remove('active');
     loginForm.style.display = 'flex';
-    registerForm.style.display = 'none';
 };
 
 tabRegister.onclick = () => {
+    hideAllForms();
     tabRegister.classList.add('active');
     tabLogin.classList.remove('active');
     registerForm.style.display = 'flex';
-    loginForm.style.display = 'none';
 };
+
+linkForgot.onclick = (e) => {
+    e.preventDefault();
+    hideAllForms();
+    forgotForm.style.display = 'flex';
+};
+
+linksBackLogin.forEach(link => {
+    link.onclick = (e) => {
+        e.preventDefault();
+        tabLogin.onclick();
+    };
+});
 
 // Login
 loginForm.onsubmit = async (e) => {
@@ -94,18 +120,68 @@ loginForm.onsubmit = async (e) => {
 registerForm.onsubmit = async (e) => {
     e.preventDefault();
     const u = document.getElementById('register-username').value;
+    const em = document.getElementById('register-email').value;
     const p = document.getElementById('register-password').value;
 
     try {
         const res = await fetch(`${API_URL}/auth/register`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username: u, password: p })
+            body: JSON.stringify({ username: u, email: em, password: p })
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
 
         alert('Registration successful! Please login.');
+        tabLogin.onclick();
+    } catch (err) {
+        handleError(err.message);
+    }
+};
+
+// Forgot Password
+forgotForm.onsubmit = async (e) => {
+    e.preventDefault();
+    const em = document.getElementById('forgot-email').value;
+    resetEmail = em;
+
+    try {
+        forgotForm.querySelector('button').innerText = 'Sending...';
+        const res = await fetch(`${API_URL}/auth/forgot-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: em })
+        });
+        const data = await res.json();
+        forgotForm.querySelector('button').innerText = 'Send OTP';
+
+        if (!res.ok) throw new Error(data.error);
+
+        alert('OTP sent! Please check your email.');
+        hideAllForms();
+        resetForm.style.display = 'flex';
+    } catch (err) {
+        handleError(err.message);
+        forgotForm.querySelector('button').innerText = 'Send OTP';
+    }
+};
+
+// Reset Password
+resetForm.onsubmit = async (e) => {
+    e.preventDefault();
+    const otp = document.getElementById('reset-otp').value;
+    const newPass = document.getElementById('reset-new-password').value;
+
+    try {
+        const res = await fetch(`${API_URL}/auth/reset-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: resetEmail, otp: otp, newPassword: newPass })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+
+        alert('Password reset successful! Please login.');
         tabLogin.onclick();
     } catch (err) {
         handleError(err.message);

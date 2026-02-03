@@ -6,8 +6,37 @@ const path = require('path');
 const fs = require('fs');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const nodemailer = require('nodemailer');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'div_ai_secret_key_123';
+
+// Email Transporter Setup (with fallback for testing)
+const getTransporter = () => {
+    const user = process.env.EMAIL_USER;
+    const pass = process.env.EMAIL_PASS;
+
+    // Only use real Gmail if credentials are NOT the placeholders
+    if (user && pass && user !== 'your-email@gmail.com' && pass !== 'your-gmail-app-password') {
+        return nodemailer.createTransport({
+            service: 'gmail',
+            auth: { user, pass }
+        });
+    } else {
+        console.warn("⚠️ [DEV MODE] No real EMAIL_USER/PASS found. OTPs will be printed to this console.");
+        return {
+            sendMail: (options) => {
+                console.log("\n📩 --- DIV.AI VIRTUAL EMAIL ---");
+                console.log(`To: ${options.to}`);
+                console.log(`Subject: ${options.subject}`);
+                console.log(`Text: ${options.text}`);
+                console.log("-------------------------------\n");
+                return Promise.resolve({ messageId: 'dev-mode' });
+            }
+        };
+    }
+};
+
+const transporter = getTransporter();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -56,7 +85,10 @@ app.use(async (req, res, next) => {
 // User Schema
 const userSchema = new mongoose.Schema({
     username: { type: String, required: true, unique: true },
-    password: { type: String, required: true }
+    email: { type: String, required: true, unique: true },
+    password: { type: String, required: true },
+    resetOTP: String,
+    resetOTPExpires: Date
 });
 
 const User = mongoose.model('User', userSchema);
@@ -95,20 +127,84 @@ const SYSTEM_PROMPT = {
 
 // 1. Register
 app.post('/api/auth/register', async (req, res) => {
-    const { username, password } = req.body;
-    if (!username || !password) return res.status(400).json({ error: 'Username and password are required' });
+    const { username, email, password } = req.body;
+    if (!username || !email || !password) return res.status(400).json({ error: 'Username, email, and password are required' });
 
     try {
-        const existingUser = await User.findOne({ username });
-        if (existingUser) return res.status(400).json({ error: 'Username already exists' });
+        const existingUser = await User.findOne({
+            $or: [{ username }, { email }]
+        });
+        if (existingUser) {
+            const field = existingUser.username === username ? 'Username' : 'Email';
+            return res.status(400).json({ error: `${field} already exists` });
+        }
 
         const hashedPassword = await bcrypt.hash(password, 10);
-        const user = new User({ username, password: hashedPassword });
+        const user = new User({ username, email, password: hashedPassword });
         await user.save();
 
         res.status(201).json({ message: 'User registered successfully' });
     } catch (error) {
         res.status(500).json({ error: 'Registration failed' });
+    }
+});
+
+// 3. Forgot Password (Request OTP)
+app.post('/api/auth/forgot-password', async (req, res) => {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+
+    try {
+        const user = await User.findOne({ email });
+        if (!user) return res.status(404).json({ error: 'User not found' });
+
+        // Generate 6-digit numeric OTP
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+        user.resetOTP = await bcrypt.hash(otp, 10);
+        user.resetOTPExpires = Date.now() + 5 * 60 * 1000; // 5 mins
+        await user.save();
+
+        const mailOptions = {
+            from: process.env.EMAIL_USER,
+            to: email,
+            subject: 'Div.ai Password Reset OTP',
+            text: `Your OTP is ${otp}.\nIt is valid for 5 minutes.\nDo not share this OTP with anyone.`
+        };
+
+        await transporter.sendMail(mailOptions);
+        res.json({ message: 'OTP sent to your email' });
+    } catch (error) {
+        console.error('OTP Send Error:', error);
+        res.status(500).json({ error: 'Failed to send OTP' });
+    }
+});
+
+// 4. Reset Password (Verify OTP & Change)
+app.post('/api/auth/reset-password', async (req, res) => {
+    const { email, otp, newPassword } = req.body;
+    if (!email || !otp || !newPassword) return res.status(400).json({ error: 'Email, OTP, and new password are required' });
+
+    try {
+        const user = await User.findOne({
+            email,
+            resetOTPExpires: { $gt: Date.now() }
+        });
+
+        if (!user) return res.status(400).json({ error: 'Invalid or expired OTP' });
+
+        const isMatch = await bcrypt.compare(otp, user.resetOTP);
+        if (!isMatch) return res.status(400).json({ error: 'Invalid or expired OTP' });
+
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        user.password = hashedPassword;
+        user.resetOTP = undefined;
+        user.resetOTPExpires = undefined;
+        await user.save();
+
+        res.json({ message: 'Password reset successful. Please login.' });
+    } catch (error) {
+        res.status(500).json({ error: 'Reset failed' });
     }
 });
 
