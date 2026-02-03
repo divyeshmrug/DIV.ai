@@ -345,7 +345,7 @@ async function loadHistory() {
             return;
         }
 
-        const history = await res.json();
+        const history = await response.json();
         chatHistory.innerHTML = ''; // Clear existing
         chatHistory.appendChild(typingIndicator); // Re-add typing indicator
 
@@ -388,7 +388,7 @@ async function sendMessage() {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify({ message: text })
+            body: JSON.stringify({ text: text })
         });
 
         const data = await res.json();
@@ -403,10 +403,7 @@ async function sendMessage() {
             throw new Error(data.error || "Failed to get response");
         }
 
-        addMessage(data.reply, 'ai-message');
-        // Update remaining count locally
-        const currentCount = parseInt(chatCountEl.innerText);
-        chatCountEl.innerText = Math.max(0, currentCount - 1);
+        addMessage(data.text, 'ai-message');
     } catch (err) {
         if (chatHistory && typingDiv.parentNode) chatHistory.removeChild(typingDiv);
         addMessage(`Error: ${err.message}`, 'ai-message');
