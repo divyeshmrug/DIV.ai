@@ -17,6 +17,7 @@ const getTransporter = () => {
 
     // Only use real Gmail if credentials are NOT the placeholders
     if (user && pass && user !== 'your-email@gmail.com' && pass !== 'your-gmail-app-password') {
+        console.log('📬 [EMAIL] Using REAL Gmail Transporter');
         return nodemailer.createTransport({
             service: 'gmail',
             auth: { user, pass }
@@ -208,11 +209,17 @@ app.post('/api/auth/forgot-password', async (req, res) => {
             text: `Your OTP is ${otp}.\nIt is valid for 5 minutes.\nDo not share this OTP with anyone.`
         };
 
-        await transporter.sendMail(mailOptions);
-        res.json({ message: 'OTP sent to your email' });
+        try {
+            await transporter.sendMail(mailOptions);
+            console.log(`✅ OTP Email sent successfully to ${email}`);
+            res.json({ message: 'OTP sent to your email' });
+        } catch (mailError) {
+            console.error('❌ OTP Send Error (transporter):', mailError);
+            res.status(500).json({ error: `Failed to send OTP: ${mailError.message}` });
+        }
     } catch (error) {
-        console.error('❌ OTP Send Error:', error);
-        res.status(500).json({ error: `Failed to send OTP: ${error.message}` });
+        console.error('❌ Forgot Password Route Error:', error);
+        res.status(500).json({ error: `Server error: ${error.message}` });
     }
 });
 
