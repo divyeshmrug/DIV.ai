@@ -13,15 +13,29 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../public'))); // Correct path when in api/ folder
 
-// MongoDB Connection
-console.log('Attempting to connect to MongoDB...');
-if (!process.env.MONGODB_URI) {
-    console.error('❌ ERROR: MONGODB_URI is missing in Environment Variables!');
-}
+// MongoDB Connection Helper (Caching for Serverless)
+let cachedConnection = null;
+const connectDB = async () => {
+    if (cachedConnection) return cachedConnection;
+    if (!process.env.MONGODB_URI) {
+        throw new Error('MONGODB_URI is missing');
+    }
+    console.log('🔄 Connecting to MongoDB...');
+    cachedConnection = await mongoose.connect(process.env.MONGODB_URI);
+    console.log('✅ Connected to MongoDB');
+    return cachedConnection;
+};
 
-mongoose.connect(process.env.MONGODB_URI)
-    .then(() => console.log('✅ Connected to MongoDB'))
-    .catch(err => console.error('❌ MongoDB Connection Error:', err));
+// Ensure DB is connected for every request
+app.use(async (req, res, next) => {
+    try {
+        await connectDB();
+        next();
+    } catch (error) {
+        console.error('❌ DB Middleware Error:', error);
+        res.status(500).json({ error: 'Database connection failed' });
+    }
+});
 
 // Chat Schema
 const chatSchema = new mongoose.Schema({
