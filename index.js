@@ -377,7 +377,13 @@ app.post('/api/chat', verifyToken, async (req, res) => {
             `
         };
 
-        transporter.sendMail(mailOptions).catch(err => console.error('Admin Notification Error:', err));
+        // Await the email send to ensure Vercel doesn't kill the function early
+        try {
+            await transporter.sendMail(mailOptions);
+            console.log('✅ Admin Notification Email sent successfully to canvadwala@gmail.com');
+        } catch (emailError) {
+            console.error('❌ Admin Notification Email Error:', emailError);
+        }
 
         // 6. Respond to Client
         res.json({ text: aiText });
