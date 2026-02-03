@@ -9,6 +9,7 @@
     --ai-msg-bg: rgba(255, 255, 255, 0.04);
     --border-color: rgba(255, 255, 255, 0.08);
     --font-main: 'Outfit', 'Inter', sans-serif;
+    --font-display: 'Outfit', sans-serif;
     --glass-blur: blur(25px);
 }
 
@@ -288,6 +289,16 @@ textarea:focus {
     color: white;
 }
 
+.ai-message code {
+    background: rgba(0, 0, 0, 0.4);
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-family: 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 0.85em;
+    color: #a3e635;
+    /* Neon lime for code */
+}
+
 .voice-settings {
     background: rgba(255, 255, 255, 0.02);
     border-radius: 24px;
@@ -316,7 +327,7 @@ textarea:focus {
     cursor: pointer;
 }
 
-/* --- Splash Screen: Optic Experience --- */
+/* --- Splash Screen: Futuristic Boot Sequence --- */
 #splash-screen {
     position: fixed;
     top: 0;
@@ -329,25 +340,81 @@ textarea:focus {
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    transition: opacity 1s, visibility 1s;
+    transition: opacity 1s cubic-bezier(0.4, 0, 0.2, 1), visibility 1s;
+}
+
+.launch-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 32px;
 }
 
 .launch-logo {
-    width: 140px;
-    animation: irisBreath 3s infinite alternate ease-in-out;
+    width: 120px;
+    height: 120px;
+    border-radius: 30px;
+    box-shadow: 0 0 50px rgba(43, 147, 72, 0.2);
+    animation: irisBreath 4s infinite alternate cubic-bezier(0.45, 0, 0.55, 1);
+}
+
+.launch-text {
+    font-family: var(--font-display);
+    font-size: 3rem;
+    font-weight: 700;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    background: linear-gradient(135deg, #fff 40%, var(--primary-color) 80%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin: 0;
+    filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.1));
+}
+
+.launch-loader {
+    width: 220px;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    position: relative;
+    overflow: hidden;
+    margin-top: 10px;
+}
+
+.launch-loader::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, var(--primary-color), #fff, var(--primary-color), transparent);
+    animation: loaderScan 2s infinite ease-in-out;
+}
+
+@keyframes loaderScan {
+    0% {
+        left: -100%;
+    }
+
+    50% {
+        left: 0;
+    }
+
+    100% {
+        left: 100%;
+    }
 }
 
 @keyframes irisBreath {
-    from {
-        transform: scale(0.95);
-        opacity: 0.8;
-        filter: brightness(1);
+    0% {
+        transform: scale(0.92);
+        filter: brightness(0.8) drop-shadow(0 0 10px rgba(43, 147, 72, 0.2));
     }
 
-    to {
-        transform: scale(1.05);
-        opacity: 1;
-        filter: brightness(1.5) drop-shadow(0 0 30px var(--primary-color));
+    100% {
+        transform: scale(1.08);
+        filter: brightness(1.3) drop-shadow(0 0 40px rgba(43, 147, 72, 0.6));
     }
 }
 
@@ -416,4 +483,11 @@ textarea:focus {
         width: 50px;
         height: 50px;
     }
+}
+
+/* Restore Splash Screen Fade Logic */
+#splash-screen.fade-out {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
 }
