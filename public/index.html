@@ -12,44 +12,76 @@
 </head>
 
 <body>
-    <div id="app-container">
-        <header>
-            <div class="logo-text">
-                <img src="logo.png" alt="Div.ai Logo" class="header-logo">
-                Div.ai
-                <div class="header-actions">
-                    <button id="pronounce-tool-btn">Pronounce</button>
-                    <button id="new-chat-btn">New Chat</button>
-                    <button id="logout-btn">Logout</button>
+    <div id="main-layout">
+        <div id="app-container">
+            <header>
+                <div class="logo-text">
+                    <img src="logo.png" alt="Div.ai Logo" class="header-logo">
+                    Div.ai
+                    <div class="header-actions">
+                        <button id="pronounce-tool-btn" title="Toggle Sidebar">Pronounce</button>
+                        <button id="new-chat-btn">New Chat</button>
+                        <button id="logout-btn">Logout</button>
+                    </div>
+                </div>
+                <div class="status-indicator">
+                    <div class="status-dot"></div>
+                    <span>Online</span>
+                </div>
+            </header>
+
+            <div id="chat-history">
+                <!-- Messages will appear here -->
+                <div class="message ai-message">
+                    <span>Hello! I am Div.ai. How can I help you?</span>
+                    <button class="speak-btn" title="Listen"
+                        onclick="speak('Hello! I am Div.ai. How can I help you?')">🔊</button>
+                </div>
+
+                <div class="typing-indicator" id="typing-indicator">
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
                 </div>
             </div>
-            <div class="status-indicator">
-                <div class="status-dot"></div>
-                <span>Online</span>
-            </div>
-        </header>
 
-        <div id="chat-history">
-            <!-- Messages will appear here -->
-            <div class="message ai-message">
-                Hello! I am Div.ai. How can I help you?
-            </div>
-
-            <div class="typing-indicator" id="typing-indicator">
-                <div class="typing-dot"></div>
-                <div class="typing-dot"></div>
-                <div class="typing-dot"></div>
+            <div id="input-area">
+                <textarea id="user-input" placeholder="Type a message..." rows="1"></textarea>
+                <button id="send-btn">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path>
+                    </svg>
+                </button>
             </div>
         </div>
 
-        <div id="input-area">
-            <textarea id="user-input" placeholder="Type a message..." rows="1"></textarea>
-            <button id="send-btn">
-                <svg viewBox="0 0 24 24">
-                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path>
-                </svg>
-            </button>
-        </div>
+        <!-- Enhanced Pronounce Sidebar -->
+        <aside id="pronounce-sidebar" class="sidebar">
+            <div class="sidebar-header">
+                <h3>🗣️ Pronounce Tool</h3>
+                <div class="sidebar-header-actions">
+                    <button id="popout-btn" title="Open in new window">↗️</button>
+                    <button id="close-sidebar-btn" title="Close">✕</button>
+                </div>
+            </div>
+            <div class="sidebar-content">
+                <p>Learn correct pronunciation by typing below:</p>
+                <textarea id="sidebar-pronounce-input" placeholder="Type anything..."></textarea>
+
+                <div class="voice-settings">
+                    <div class="setting-group">
+                        <label>Voice Language</label>
+                        <select id="voice-select"></select>
+                    </div>
+                    <div class="setting-group">
+                        <label>Speech Speed</label>
+                        <input type="range" id="rate-slider" min="0.5" max="2" step="0.1" value="1">
+                    </div>
+                </div>
+
+                <button id="sidebar-play-btn" class="primary-btn">🔊 Hear it Now</button>
+            </div>
+        </aside>
     </div>
 
     <!-- Auth Overlay -->
@@ -101,22 +133,6 @@
             </form>
 
             <div id="auth-error" class="auth-error"></div>
-        </div>
-    </div>
-
-    <!-- Configuration -->
-    <!-- Main Logic -->
-    <!-- Main Logic -->
-    <!-- Pronounce Tool Modal -->
-    <div id="pronounce-modal" class="modal-overlay" style="display: none;">
-        <div class="modal-content pronounce-card">
-            <h2>Pronounce Tool</h2>
-            <p>Type anything to hear the correct pronunciation</p>
-            <textarea id="pronounce-input" placeholder="Enter text here..."></textarea>
-            <div class="modal-actions">
-                <button id="pronounce-play-btn">🔊 Hear it</button>
-                <button id="close-pronounce-btn" class="secondary-btn">Close</button>
-            </div>
         </div>
     </div>
 

@@ -15,10 +15,13 @@ const tabRegister = document.getElementById('tab-register');
 const authError = document.getElementById('auth-error');
 const logoutBtn = document.getElementById('logout-btn');
 const pronounceToolBtn = document.getElementById('pronounce-tool-btn');
-const pronounceModal = document.getElementById('pronounce-modal');
-const pronounceInput = document.getElementById('pronounce-input');
-const pronouncePlayBtn = document.getElementById('pronounce-play-btn');
-const closePronounceBtn = document.getElementById('close-pronounce-btn');
+const pronounceSidebar = document.getElementById('pronounce-sidebar');
+const sidebarPronounceInput = document.getElementById('sidebar-pronounce-input');
+const sidebarPlayBtn = document.getElementById('sidebar-play-btn');
+const closeSidebarBtn = document.getElementById('close-sidebar-btn');
+const popoutBtn = document.getElementById('popout-btn');
+const voiceSelect = document.getElementById('voice-select');
+const rateSlider = document.getElementById('rate-slider');
 const newChatBtn = document.getElementById('new-chat-btn');
 const linkForgot = document.getElementById('link-forgot');
 const linksBackLogin = document.querySelectorAll('.link-back-login');
@@ -41,24 +44,48 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Pronounce Tool Logic
+let voices = [];
+
+function loadVoices() {
+    voices = window.speechSynthesis.getVoices();
+    if (voiceSelect) {
+        voiceSelect.innerHTML = voices
+            .map((v, i) => `<option value="${i}">${v.name} (${v.lang})</option>`)
+            .join('');
+    }
+}
+
+// Initial load
+window.speechSynthesis.onvoiceschanged = loadVoices;
+loadVoices();
+
 pronounceToolBtn.onclick = () => {
-    pronounceModal.style.display = 'flex';
-    pronounceInput.focus();
+    pronounceSidebar.classList.toggle('active');
+    if (pronounceSidebar.classList.contains('active')) {
+        sidebarPronounceInput.focus();
+    }
 };
 
-closePronounceBtn.onclick = () => {
-    pronounceModal.style.display = 'none';
+closeSidebarBtn.onclick = () => {
+    pronounceSidebar.classList.remove('active');
     window.speechSynthesis.cancel();
 };
 
-pronouncePlayBtn.onclick = () => {
-    const text = pronounceInput.value.trim();
-    if (text) speak(text);
+sidebarPlayBtn.onclick = () => {
+    const text = sidebarPronounceInput.value.trim();
+    if (text) {
+        const rate = rateSlider ? rateSlider.value : 1;
+        const voice = voices[voiceSelect.value];
+        speak(text, rate, voice);
+    }
 };
 
-// Close modal on background click
-pronounceModal.onclick = (e) => {
-    if (e.target === pronounceModal) closePronounceBtn.onclick();
+popoutBtn.onclick = () => {
+    const w = 600;
+    const h = 700;
+    const left = (screen.width / 2) - (w / 2);
+    const top = (screen.height / 2) - (h / 2);
+    window.open('pronounce.html', 'PronounceTool', `width=${w},height=${h},top=${top},left=${left}`);
 };
 
 // --- Auth Functions ---
@@ -356,15 +383,15 @@ function addMessage(text, className) {
     scrollToBottom();
 }
 
-function speak(text) {
+function speak(text, rate = 1, voice = null) {
     if ('speechSynthesis' in window) {
         window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(text);
-        utterance.rate = 1.0;
-        utterance.pitch = 1.0;
+        utterance.rate = rate;
+        if (voice) utterance.voice = voice;
         window.speechSynthesis.speak(utterance);
     } else {
-        alert("Sorry, your browser does not support text-to-speech.");
+        alert("Sorry, your browser doesn't support text-to-speech.");
     }
 }
 
