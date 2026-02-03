@@ -94,7 +94,8 @@ const userSchema = new mongoose.Schema({
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     resetOTP: String,
-    resetOTPExpires: Date
+    resetOTPExpires: Date,
+    lastChatReset: { type: Date, default: Date.now }
 });
 
 const User = mongoose.model('User', userSchema);
@@ -236,20 +237,37 @@ app.post('/api/auth/login', async (req, res) => {
 // 1. Get Chat History (Protected)
 app.get('/api/history', verifyToken, async (req, res) => {
     try {
-        const history = await Chat.find({ userId: req.user.userId }).sort({ timestamp: 1 });
+        const user = await User.findById(req.user.userId);
+        const history = await Chat.find({
+            userId: req.user.userId,
+            timestamp: { $gt: user.lastChatReset || 0 }
+        }).sort({ timestamp: 1 });
         res.json(history);
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch history' });
     }
 });
 
-// 3. Clear Chat History (Protected)
+// 3. Clear Chat History (Protected - SOFT RESET)
 app.delete('/api/history', verifyToken, async (req, res) => {
     try {
-        await Chat.deleteMany({ userId: req.user.userId });
-        res.json({ message: 'Chat history cleared' });
+        await User.findByIdAndUpdate(req.user.userId, { lastChatReset: new Date() });
+        res.json({ message: 'Chat history reset for new conversation' });
     } catch (error) {
-        res.status(500).json({ error: 'Failed to clear history' });
+        res.status(500).json({ error: 'Failed to reset history' });
+    }
+});
+
+// 4. Get User Stats (Protected)
+app.get('/api/stats', verifyToken, async (req, res) => {
+    try {
+        const count = await Chat.countDocuments({
+            userId: req.user.userId,
+            role: 'user'
+        });
+        res.json({ count });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch stats' });
     }
 });
 
@@ -265,8 +283,12 @@ app.post('/api/chat', verifyToken, async (req, res) => {
         const userMsg = new Chat({ userId, role: 'user', text });
         await userMsg.save();
 
-        // 2. Fetch Recent History (Context specific to user)
-        const recentChats = await Chat.find({ userId }).sort({ timestamp: -1 }).limit(10);
+        // 2. Fetch Recent History (Context specific to user, after last reset)
+        const user = await User.findById(userId);
+        const recentChats = await Chat.find({
+            userId,
+            timestamp: { $gt: user.lastChatReset || 0 }
+        }).sort({ timestamp: -1 }).limit(10);
         const history = recentChats.reverse().map(c => ({
             role: c.role,
             parts: [{ text: c.text }]
