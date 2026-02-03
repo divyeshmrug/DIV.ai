@@ -14,6 +14,11 @@ const tabLogin = document.getElementById('tab-login');
 const tabRegister = document.getElementById('tab-register');
 const authError = document.getElementById('auth-error');
 const logoutBtn = document.getElementById('logout-btn');
+const pronounceToolBtn = document.getElementById('pronounce-tool-btn');
+const pronounceModal = document.getElementById('pronounce-modal');
+const pronounceInput = document.getElementById('pronounce-input');
+const pronouncePlayBtn = document.getElementById('pronounce-play-btn');
+const closePronounceBtn = document.getElementById('close-pronounce-btn');
 const newChatBtn = document.getElementById('new-chat-btn');
 const linkForgot = document.getElementById('link-forgot');
 const linksBackLogin = document.querySelectorAll('.link-back-login');
@@ -34,6 +39,27 @@ document.addEventListener('DOMContentLoaded', () => {
         showAuth();
     }
 });
+
+// Pronounce Tool Logic
+pronounceToolBtn.onclick = () => {
+    pronounceModal.style.display = 'flex';
+    pronounceInput.focus();
+};
+
+closePronounceBtn.onclick = () => {
+    pronounceModal.style.display = 'none';
+    window.speechSynthesis.cancel();
+};
+
+pronouncePlayBtn.onclick = () => {
+    const text = pronounceInput.value.trim();
+    if (text) speak(text);
+};
+
+// Close modal on background click
+pronounceModal.onclick = (e) => {
+    if (e.target === pronounceModal) closePronounceBtn.onclick();
+};
 
 // --- Auth Functions ---
 
@@ -318,14 +344,13 @@ function addMessage(text, className) {
     textSpan.innerHTML = formattedText;
     msgDiv.appendChild(textSpan);
 
-    if (className === 'ai-message') {
-        const speakBtn = document.createElement('button');
-        speakBtn.className = 'speak-btn';
-        speakBtn.innerHTML = '🔊';
-        speakBtn.title = 'Listen to response';
-        speakBtn.onclick = () => speak(text);
-        msgDiv.appendChild(speakBtn);
-    }
+    // Speak button for ALL messages
+    const speakBtn = document.createElement('button');
+    speakBtn.className = 'speak-btn';
+    speakBtn.innerHTML = '🔊';
+    speakBtn.title = 'Listen';
+    speakBtn.onclick = () => speak(text);
+    msgDiv.appendChild(speakBtn);
 
     chatHistory.insertBefore(msgDiv, typingIndicator);
     scrollToBottom();

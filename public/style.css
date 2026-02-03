@@ -291,6 +291,40 @@ textarea:focus {
     box-shadow: 0 0 15px rgba(43, 147, 72, 0.1);
 }
 
+/* Pronounce Tool Card */
+.pronounce-card {
+    max-width: 400px;
+    width: 90%;
+}
+
+#pronounce-input {
+    width: 100%;
+    min-height: 100px;
+    margin: 16px 0;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    color: var(--text-primary);
+    font-family: inherit;
+    resize: none;
+}
+
+#pronounce-tool-btn {
+    background: rgba(43, 147, 72, 0.1);
+    color: var(--primary-color);
+    border: 1px solid rgba(43, 147, 72, 0.3);
+}
+
+#pronounce-tool-btn:hover {
+    background: var(--primary-color);
+    color: white;
+}
+
+#pronounce-play-btn {
+    flex: 1;
+}
+
 textarea::placeholder {
     color: rgba(255, 255, 255, 0.3);
 }

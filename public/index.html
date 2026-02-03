@@ -18,6 +18,7 @@
                 <img src="logo.png" alt="Div.ai Logo" class="header-logo">
                 Div.ai
                 <div class="header-actions">
+                    <button id="pronounce-tool-btn">Pronounce</button>
                     <button id="new-chat-btn">New Chat</button>
                     <button id="logout-btn">Logout</button>
                 </div>
@@ -106,6 +107,19 @@
     <!-- Configuration -->
     <!-- Main Logic -->
     <!-- Main Logic -->
+    <!-- Pronounce Tool Modal -->
+    <div id="pronounce-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content pronounce-card">
+            <h2>Pronounce Tool</h2>
+            <p>Type anything to hear the correct pronunciation</p>
+            <textarea id="pronounce-input" placeholder="Enter text here..."></textarea>
+            <div class="modal-actions">
+                <button id="pronounce-play-btn">🔊 Hear it</button>
+                <button id="close-pronounce-btn" class="secondary-btn">Close</button>
+            </div>
+        </div>
+    </div>
+
     <script src="script.js"></script>
 </body>
 
