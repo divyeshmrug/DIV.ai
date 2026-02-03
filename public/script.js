@@ -36,6 +36,12 @@ let resetEmail = ''; // To store email during reset flow
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
+    // Splash Screen Timing
+    const splash = document.getElementById('splash-screen');
+    setTimeout(() => {
+        if (splash) splash.classList.add('fade-out');
+    }, 2500);
+
     if (token) {
         showApp();
     } else {
