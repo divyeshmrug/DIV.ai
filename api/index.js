@@ -11,7 +11,7 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public'))); // Standard static folder path
+app.use(express.static(path.join(__dirname, '../public'))); // Correct path for api/ folder structure
 
 // MongoDB Connection Helper (Caching for Serverless)
 let cachedConnection = null;
