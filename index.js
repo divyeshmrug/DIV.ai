@@ -11,10 +11,7 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(cors());
 app.use(express.json());
-// In Vercel, static files in root are served automatically. 
-// We don't need app.use(express.static) for production here.
-// But we keep it simple for local testing if needed.
-app.use(express.static(path.join(__dirname, '..')));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // MongoDB Connection Helper (Caching for Serverless)
 let cachedConnection = null;
