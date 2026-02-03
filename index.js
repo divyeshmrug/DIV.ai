@@ -9,7 +9,6 @@ const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'div_ai_secret_key_123';
-const DAILY_LIMIT = 1500;
 
 // Email Transporter Setup (with fallback for testing)
 const getTransporter = () => {

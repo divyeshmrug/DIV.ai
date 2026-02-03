@@ -3,7 +3,6 @@ const chatHistory = document.getElementById('chat-history');
 const userInput = document.getElementById('user-input');
 const sendBtn = document.getElementById('send-btn');
 const typingIndicator = document.getElementById('typing-indicator');
-const chatCountEl = document.getElementById('chat-count');
 
 // Auth Elements
 const authOverlay = document.getElementById('auth-overlay');
@@ -44,21 +43,6 @@ function showApp() {
     newChatBtn.style.display = 'block';
     logoutBtn.style.display = 'block';
     loadHistory();
-    updateChatCount();
-}
-
-async function updateChatCount() {
-    try {
-        const res = await fetch(`${API_URL}/stats`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const data = await res.json();
-        if (data.remaining !== undefined) {
-            chatCountEl.innerText = data.remaining;
-        }
-    } catch (err) {
-        console.error("Failed to update count", err);
-    }
 }
 
 function showAuth() {

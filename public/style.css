@@ -124,20 +124,11 @@ header {
 .status-indicator {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
     font-size: 0.8rem;
     color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 1px;
-}
-
-.chat-count-wrapper {
-    background: rgba(43, 147, 72, 0.1);
-    color: var(--primary-color);
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-weight: 600;
-    margin-left: 8px;
 }
 
 .status-dot {
