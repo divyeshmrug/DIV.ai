@@ -53,8 +53,8 @@ async function updateChatCount() {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await res.json();
-        if (data.count !== undefined) {
-            chatCountEl.innerText = data.count;
+        if (data.remaining !== undefined) {
+            chatCountEl.innerText = data.remaining;
         }
     } catch (err) {
         console.error("Failed to update count", err);
@@ -309,9 +309,9 @@ async function sendMessage() {
         showTyping(false);
         addMessage(data.text, 'ai-message');
 
-        // Update count after successful user message (already sent at the start of loop)
+        // Update remaining count locally
         const currentCount = parseInt(chatCountEl.innerText);
-        chatCountEl.innerText = currentCount + 1;
+        chatCountEl.innerText = Math.max(0, currentCount - 1);
 
     } catch (error) {
         showTyping(false);
