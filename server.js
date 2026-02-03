@@ -14,6 +14,11 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public'))); // Serve static files from public folder
 
 // MongoDB Connection
+console.log('Attempting to connect to MongoDB...');
+if (!process.env.MONGODB_URI) {
+    console.error('❌ ERROR: MONGODB_URI is missing in Environment Variables!');
+}
+
 mongoose.connect(process.env.MONGODB_URI)
     .then(() => console.log('✅ Connected to MongoDB'))
     .catch(err => console.error('❌ MongoDB Connection Error:', err));
