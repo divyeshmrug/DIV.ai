@@ -18,12 +18,24 @@ let cachedConnection = null;
 const connectDB = async () => {
     if (cachedConnection) return cachedConnection;
     if (!process.env.MONGODB_URI) {
-        throw new Error('MONGODB_URI is missing');
+        throw new Error('MONGODB_URI is missing in Vercel Environment Variables');
     }
-    console.log('🔄 Connecting to MongoDB...');
-    cachedConnection = await mongoose.connect(process.env.MONGODB_URI);
-    console.log('✅ Connected to MongoDB');
-    return cachedConnection;
+
+    try {
+        console.log('🔄 Connecting to MongoDB...');
+        // Setting bufferCommands to false makes errors appear immediately
+        mongoose.set('bufferCommands', false);
+
+        cachedConnection = await mongoose.connect(process.env.MONGODB_URI, {
+            serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
+        });
+
+        console.log('✅ Connected to MongoDB');
+        return cachedConnection;
+    } catch (err) {
+        console.error('❌ MongoDB Connection Error:', err.message);
+        throw err;
+    }
 };
 
 // Ensure DB is connected for every request
