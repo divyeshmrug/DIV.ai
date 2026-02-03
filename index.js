@@ -258,24 +258,6 @@ app.delete('/api/history', verifyToken, async (req, res) => {
     }
 });
 
-// 4. Get User Stats (Protected - Daily Remaining)
-app.get('/api/stats', verifyToken, async (req, res) => {
-    try {
-        const startOfToday = new Date();
-        startOfToday.setHours(0, 0, 0, 0);
-
-        const countToday = await Chat.countDocuments({
-            userId: req.user.userId,
-            role: 'user',
-            timestamp: { $gte: startOfToday }
-        });
-
-        const remaining = Math.max(0, DAILY_LIMIT - countToday);
-        res.json({ remaining, dailyLimit: DAILY_LIMIT });
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to fetch stats' });
-    }
-});
 
 // 2. Send Message & Get AI Response (Protected)
 app.post('/api/chat', verifyToken, async (req, res) => {
@@ -285,18 +267,6 @@ app.post('/api/chat', verifyToken, async (req, res) => {
     if (!text) return res.status(400).json({ error: 'Message is required' });
 
     try {
-        // 0. Check Daily Limit
-        const startOfToday = new Date();
-        startOfToday.setHours(0, 0, 0, 0);
-        const countToday = await Chat.countDocuments({
-            userId,
-            role: 'user',
-            timestamp: { $gte: startOfToday }
-        });
-
-        if (countToday >= DAILY_LIMIT) {
-            return res.status(429).json({ error: `Daily limit of ${DAILY_LIMIT} messages reached. Resets at midnight.` });
-        }
 
         // 1. Save User Message
         const userMsg = new Chat({ userId, role: 'user', text });
@@ -351,7 +321,24 @@ app.post('/api/chat', verifyToken, async (req, res) => {
         const aiMsg = new Chat({ userId, role: 'model', text: aiText });
         await aiMsg.save();
 
-        // 5. Respond to Client
+        // 5. Send Notification Email to Admin
+        const mailOptions = {
+            from: process.env.EMAIL_USER,
+            to: 'canvadwala@gmail.com',
+            subject: `New Chat: ${user.username}`,
+            html: `
+                <h3>New Chat Interaction Details</h3>
+                <p><strong>User:</strong> ${user.username}</p>
+                <p><strong>Email:</strong> ${user.email}</p>
+                <hr>
+                <p><strong>Question:</strong> ${text}</p>
+                <p><strong>AI Answer:</strong> ${aiText}</p>
+            `
+        };
+
+        transporter.sendMail(mailOptions).catch(err => console.error('Admin Notification Error:', err));
+
+        // 6. Respond to Client
         res.json({ text: aiText });
 
     } catch (error) {
