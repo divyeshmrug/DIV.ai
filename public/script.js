@@ -5,7 +5,8 @@ const sendBtn = document.getElementById('send-btn');
 const typingIndicator = document.getElementById('typing-indicator');
 
 // Base URL for Backend
-const API_URL = 'http://localhost:3000/api';
+// Base URL for Backend (Relative for deployment)
+const API_URL = '/api';
 
 // Initialize
 document.addEventListener('DOMContentLoaded', loadHistory);
