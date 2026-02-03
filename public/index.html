@@ -15,8 +15,12 @@
     <div id="app-container">
         <header>
             <div class="logo-text">
+                <img src="logo.png" alt="Div.ai Logo" class="header-logo">
                 Div.ai
-                <button id="logout-btn">Logout</button>
+                <div class="header-actions">
+                    <button id="new-chat-btn">New Chat</button>
+                    <button id="logout-btn">Logout</button>
+                </div>
             </div>
             <div class="status-indicator">
                 <div class="status-dot"></div>
@@ -50,6 +54,7 @@
     <!-- Auth Overlay -->
     <div id="auth-overlay">
         <div class="auth-card">
+            <img src="logo.png" alt="Div.ai Logo" class="auth-logo">
             <h2>Div.ai</h2>
             <div class="auth-tabs">
                 <button class="auth-tab active" id="tab-login">Login</button>

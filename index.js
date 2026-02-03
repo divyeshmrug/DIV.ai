@@ -46,6 +46,12 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Request Logger
+app.use((req, res, next) => {
+    console.log(`📡 ${req.method} ${req.url}`);
+    next();
+});
+
 // MongoDB Connection Helper (Caching for Serverless)
 let cachedConnection = null;
 const connectDB = async () => {
@@ -175,8 +181,8 @@ app.post('/api/auth/forgot-password', async (req, res) => {
         await transporter.sendMail(mailOptions);
         res.json({ message: 'OTP sent to your email' });
     } catch (error) {
-        console.error('OTP Send Error:', error);
-        res.status(500).json({ error: 'Failed to send OTP' });
+        console.error('❌ OTP Send Error:', error);
+        res.status(500).json({ error: `Failed to send OTP: ${error.message}` });
     }
 });
 
@@ -234,6 +240,16 @@ app.get('/api/history', verifyToken, async (req, res) => {
         res.json(history);
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch history' });
+    }
+});
+
+// 3. Clear Chat History (Protected)
+app.delete('/api/history', verifyToken, async (req, res) => {
+    try {
+        await Chat.deleteMany({ userId: req.user.userId });
+        res.json({ message: 'Chat history cleared' });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to clear history' });
     }
 });
 

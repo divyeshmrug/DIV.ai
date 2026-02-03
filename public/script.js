@@ -14,6 +14,7 @@ const tabLogin = document.getElementById('tab-login');
 const tabRegister = document.getElementById('tab-register');
 const authError = document.getElementById('auth-error');
 const logoutBtn = document.getElementById('logout-btn');
+const newChatBtn = document.getElementById('new-chat-btn');
 const linkForgot = document.getElementById('link-forgot');
 const linksBackLogin = document.querySelectorAll('.link-back-login');
 
@@ -39,6 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
 function showApp() {
     authOverlay.style.display = 'none';
     logoutBtn.innerText = `Logout (${username})`;
+    newChatBtn.style.display = 'block';
     logoutBtn.style.display = 'block';
     loadHistory();
 }
@@ -192,6 +194,27 @@ resetForm.onsubmit = async (e) => {
 logoutBtn.onclick = () => {
     localStorage.clear();
     location.reload();
+};
+
+// New Chat
+newChatBtn.onclick = async () => {
+    if (!confirm("Are you sure you want to clear your chat history?")) return;
+
+    try {
+        const res = await fetch(`${API_URL}/history`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!res.ok) throw new Error("Failed to clear history");
+
+        chatHistory.innerHTML = '';
+        chatHistory.appendChild(typingIndicator);
+        addMessage(`Welcome back ${username}! Let's start a fresh conversation.`, 'ai-message');
+    } catch (err) {
+        console.error(err);
+        alert(err.message);
+    }
 };
 
 // --- Chat Functions ---
