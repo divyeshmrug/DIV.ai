@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Div.ai</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Inter:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* Specific overrides for standalone login page */
+        body {
+            /* Ensure the gradient background is visible */
+            overflow: auto;
+            /* Allow scroll if card is tall */
+            padding: 20px;
+        }
+
+        #auth-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .auth-card {
+            background: rgba(255, 255, 255, 0.95);
+            /* Reset some overlay specific styles */
+            margin: auto;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="auth-container">
+        <div class="auth-card">
+            <img src="logo.png" alt="Div.ai Logo" class="auth-logo">
+            <h2>Div.ai</h2>
+            <div class="auth-tabs">
+                <button class="auth-tab active" id="tab-login">Login</button>
+                <button class="auth-tab" id="tab-register">Register</button>
+            </div>
+
+            <!-- Login Form -->
+            <form id="login-form" class="auth-form">
+                <input type="text" id="login-username" placeholder="Username" required>
+                <input type="password" id="login-password" placeholder="Password" required>
+                <button type="submit" class="auth-submit">Login</button>
+                <a href="#" id="link-forgot"
+                    style="color: var(--text-secondary); font-size: 0.8rem; margin-top: 10px; text-decoration: none;">Forgot
+                    Password?</a>
+            </form>
+
+            <!-- Register Form -->
+            <form id="register-form" class="auth-form" style="display: none;">
+                <input type="text" id="register-username" placeholder="Username" required>
+                <input type="email" id="register-email" placeholder="Email" required>
+                <input type="password" id="register-password" placeholder="Password" required>
+                <button type="submit" class="auth-submit">Create Account</button>
+            </form>
+
+            <!-- Forgot Password Form (Request OTP) -->
+            <form id="forgot-form" class="auth-form" style="display: none;">
+                <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 10px;">Enter your email to
+                    receive a 6-digit OTP.</p>
+                <input type="email" id="forgot-email" placeholder="Email" required>
+                <button type="submit" class="auth-submit">Send OTP</button>
+                <a href="#" class="link-back-login"
+                    style="color: var(--text-secondary); font-size: 0.8rem; margin-top: 10px; text-decoration: none;">Back
+                    to Login</a>
+            </form>
+
+            <!-- Reset Password Form (Verify OTP) -->
+            <form id="reset-form" class="auth-form" style="display: none;">
+                <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 10px;">Enter the 6-digit OTP
+                    sent to your email.</p>
+                <input type="text" id="reset-otp" placeholder="6-digit OTP" required maxlength="6" pattern="\d{6}">
+                <input type="password" id="reset-new-password" placeholder="New Password" required minlength="6">
+                <button type="submit" class="auth-submit">Reset Password</button>
+                <a href="#" class="link-back-login"
+                    style="color: var(--text-secondary); font-size: 0.8rem; margin-top: 10px; text-decoration: none;">Back
+                    to Login</a>
+            </form>
+
+            <div id="auth-error" class="auth-error"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
