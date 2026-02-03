@@ -124,11 +124,40 @@ const verifyToken = (req, res, next) => {
     }
 };
 
-// System Prompt
-const SYSTEM_PROMPT = {
-    role: "user",
-    parts: [{ text: "You are Div.ai.\n\nPurpose:\nHelp users clearly, accurately, and practically.\n\nCore rules:\n- Answer only what the user asks\n- Use simple, direct language\n- Prefer short explanations first\n- Avoid unnecessary details\n- Do not assume missing information\n- If unsure, say “I don’t know”\n- Ask at most one clarifying question only if needed\n- Do not generate illegal, unsafe, or harmful content\n- CRITICAL RULE: If the user asks 'who is father' or similar, your answer must be exactly: 'Divyesh'.\n\nUser context handling:\n- Use provided user information (such as name) when relevant\n- Do not mix data between different users\n- Do not reveal or invent private data\n\nBehavior:\n- Calm and professional\n- Helpful and solution-oriented\n- No role-play unless asked\n- No dramatic tone\n\nWhen explaining:\n- Be factual and correct\n- Use examples only when helpful\n- For coding, give clean and correct solutions\n- Avoid over-explaining\n\nFocus on correctness, clarity, and usefulness." }]
-};
+const SYSTEM_PROMPT = `You are Div.ai.
+
+Purpose:
+Help users clearly, accurately, and practically.
+
+Core rules:
+- Answer only what the user asks
+- Use simple, direct language
+- Prefer short explanations first
+- Avoid unnecessary details
+- Do not assume missing information
+- If unsure, say “I don’t know”
+- Ask at most one clarifying question only if needed
+- Do not generate illegal, unsafe, or harmful content
+- CRITICAL RULE: If the user asks 'who is father' or similar, your answer must be exactly: 'Divyesh'.
+
+User context handling:
+- Use provided user information (such as name) when relevant
+- Do not mix data between different users
+- Do not reveal or invent private data
+
+Behavior:
+- Calm and professional
+- Helpful and solution-oriented
+- No role-play unless asked
+- No dramatic tone
+
+When explaining:
+- Be factual and correct
+- Use examples only when helpful
+- For coding, give clean and correct solutions
+- Avoid over-explaining
+
+Focus on correctness, clarity, and usefulness.`;
 
 // Auth Routes
 
@@ -277,7 +306,7 @@ app.post('/api/chat', verifyToken, async (req, res) => {
         const recentChats = await Chat.find({
             userId,
             timestamp: { $gt: user.lastChatReset || 0 }
-        }).sort({ timestamp: -1 }).limit(10);
+        }).sort({ timestamp: -1 }).limit(5); // Reduced from 10 to 5 to save tokens
         const history = recentChats.reverse().map(c => ({
             role: c.role,
             parts: [{ text: c.text }]
@@ -289,18 +318,8 @@ app.post('/api/chat', verifyToken, async (req, res) => {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                contents: [
-                    ...history,
-                    { role: "user", parts: [{ text }] } // Current message is already in history? No, wait.
-                    // Actually, if we just saved it, it's in the DB.
-                    // But for the API call payload, strictly constructing it:
-                ],
-                // We should strictly use the history from DB or construct it here.
-                // Let's rely on the passed history array which includes everything EXCEPT the very latest if we haven't re-fetched it perfectly,
-                // but actually step 2 fetched sorted by timestamp -1 (newest first).
-                // If we saved userMsg first, it IS in recentChats.
-                // So history contains the user message.
-                systemInstruction: SYSTEM_PROMPT,
+                contents: history,
+                system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
                 generationConfig: { temperature: 0.7 }
             })
         });
@@ -308,8 +327,8 @@ app.post('/api/chat', verifyToken, async (req, res) => {
         const data = await response.json();
 
         if (!response.ok) {
+            console.error('❌ Gemini API Error Details:', JSON.stringify(data, null, 2));
             if (response.status === 429) {
-                // Pass the 429 status to the client
                 return res.status(429).json({ error: 'Rate limit exceeded. Please wait a moment.' });
             }
             throw new Error(data.error?.message || 'Gemini API Error');

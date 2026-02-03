@@ -299,7 +299,10 @@ async function sendMessage() {
 
     } catch (error) {
         showTyping(false);
-        addMessage(`Error: ${error.message}`, 'ai-message');
+        const errorMsg = error.message.includes('Rate limit')
+            ? "⚠️ AI Limit Reached. Please wait 30-60 seconds and try again."
+            : `Error: ${error.message}`;
+        addMessage(errorMsg, 'ai-message');
     }
 }
 
