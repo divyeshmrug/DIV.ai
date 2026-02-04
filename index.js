@@ -507,19 +507,27 @@ app.get('/api/diag', async (req, res) => {
 
 // LLM Provider Functions
 async function callGemini(history) {
-    const response = await fetch(`${process.env.GEMINI_API_URL}?key=${process.env.GEMINI_API_KEY}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            contents: history,
-            system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
-            generationConfig: { temperature: 0.7 }
-        })
-    });
+    try {
+        const response = await fetch(`${process.env.GEMINI_API_URL}?key=${process.env.GEMINI_API_KEY}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: history,
+                system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+                generationConfig: { temperature: 0.7 }
+            })
+        });
 
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error?.message || 'Gemini API Error');
-    return data.candidates[0].content.parts[0].text;
+        const data = await response.json();
+        if (!response.ok) {
+            console.error("❌ Gemini API Error:", JSON.stringify(data, null, 2));
+            throw new Error(data.error?.message || 'Gemini API Error');
+        }
+        return data.candidates[0].content.parts[0].text;
+    } catch (error) {
+        console.error("❌ Gemini Call Failed:", error);
+        throw error;
+    }
 }
 
 async function callGroq(history) {
@@ -547,7 +555,10 @@ async function callGroq(history) {
     });
 
     const data = await response.json();
-    if (!response.ok) throw new Error(data.error?.message || 'Groq API Error');
+    if (!response.ok) {
+        console.error("❌ Groq API Error:", JSON.stringify(data, null, 2));
+        throw new Error(data.error?.message || 'Groq API Error');
+    }
     return data.choices[0].message.content;
 }
 
@@ -658,7 +669,12 @@ app.post('/api/chat', verifyToken, async (req, res) => {
         if (!cachedResponse) {
             currentUser.chatCount += 1;
             currentUser.lastChatTime = new Date();
-            await currentUser.save();
+            try {
+                await currentUser.save();
+            } catch (saveErr) {
+                console.error("⚠️ Failed to update user stats (ignoring):", saveErr.message);
+                // Continue without failing the request
+            }
         }
 
         const userForEmail = await User.findById(userId);
