@@ -643,10 +643,11 @@ app.post('/api/chat', verifyToken, async (req, res) => {
             aiText = cachedResponse.answer;
             // Update hit count
             await FaqCache.updateOne({ question: normalizedInput }, { $inc: { hits: 1 } });
-        } else if (provider === 'llama') {
-            aiText = await callGroq(history);
-        } else {
+        } else if (provider === 'gemini') {
             aiText = await callGemini(history);
+        } else {
+            // Default to 'llama' (Div.ai)
+            aiText = await callGroq(history);
         }
 
         // 4. Update Query Analytics & Save to FAQ Cache
