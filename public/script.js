@@ -367,7 +367,7 @@ async function loadConversationList() {
                 document.querySelectorAll('.history-item').forEach(i => i.classList.remove('active'));
                 item.classList.add('active');
                 loadConversationMessages(conv._id);
-                if (window.innerWidth < 768) historySidebar.classList.remove('active');
+                if (window.innerWidth < 800) historySidebar.classList.remove('active');
             };
 
             historyList.appendChild(item);
