@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Div.ai Admin | Analytics</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .admin-page {
+            min-height: 100vh;
+            background: var(--bg-color);
+            padding: 40px 20px;
+        }
+
+        .admin-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 30px;
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.05);
+        }
+
+        .admin-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 40px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 16px;
+            text-align: center;
+            border: 1px solid var(--border-color);
+            transition: 0.3s;
+        }
+
+        .stat-card:hover {
+            border-color: var(--secondary-color);
+            transform: translateY(-5px);
+        }
+
+        .stat-card h3 {
+            font-size: 0.85rem;
+            color: #6e6e73;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .stat-card p {
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: var(--accent-color);
+        }
+
+        .tables-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        @media (max-width: 850px) {
+            .tables-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .section-box {
+            background: white;
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            padding: 20px;
+        }
+
+        .section-box h2 {
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.95rem;
+        }
+
+        th {
+            color: #6e6e73;
+            font-weight: 500;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+        }
+
+        .hit-badge {
+            background: #f2f2f7;
+            color: var(--text-color);
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+
+<body class="admin-page light-mode">
+    <div class="admin-container">
+        <div class="admin-header">
+            <div class="logo-text">📊 Dev Analytics</div>
+            <button onclick="window.location.href='/'"
+                style="padding: 10px 20px; border-radius: 12px; border: 1px solid var(--border-color); background: white; cursor: pointer;">Back
+                to Chat</button>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>FAQ Rules</h3>
+                <p id="total-faqs">-</p>
+            </div>
+            <div class="stat-card">
+                <h3>Total Savings</h3>
+                <p id="total-hits">-</p>
+            </div>
+            <div class="stat-card">
+                <h3>System Health</h3>
+                <p style="color: #34c759; font-size: 1.2rem;">Good</p>
+            </div>
+        </div>
+
+        <div class="tables-container">
+            <div class="section-box">
+                <h2>⚡ Top FAQ Hits</h2>
+                <table id="faq-table">
+                    <thead>
+                        <tr>
+                            <th>Question</th>
+                            <th>Hits</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <div class="section-box">
+                <h2>🤖 Trending Queries</h2>
+                <table id="query-table">
+                    <thead>
+                        <tr>
+                            <th>Question</th>
+                            <th>Count</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        if (!token) {
+            window.location.href = '/login.html';
+        }
+
+        async function loadStats() {
+            try {
+                const res = await fetch('/api/admin/stats', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+
+                if (res.status === 410 || res.status === 401) {
+                    window.location.href = '/login.html';
+                    return;
+                }
+
+                document.getElementById('total-faqs').innerText = data.totalFaqs;
+                document.getElementById('total-hits').innerText = data.totalHits;
+
+                const faqBody = document.querySelector('#faq-table tbody');
+                faqBody.innerHTML = data.topFaqs.map(f => `
+                    <tr>
+                        <td>${f.question}</td>
+                        <td><span class="hit-badge">${f.hits}</span></td>
+                    </tr>
+                `).join('');
+
+                const queryBody = document.querySelector('#query-table tbody');
+                queryBody.innerHTML = data.topQueries.map(q => `
+                    <tr>
+                        <td style="color:#666">${q.question}</td>
+                        <td><span class="hit-badge" style="background:rgba(0,122,255,0.1); color:#007aff">${q.frequency}</span></td>
+                    </tr>
+                `).join('');
+
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        loadStats();
+    </script>
+</body>
+
+</html>

@@ -53,7 +53,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (token && isLoginPage) {
-        window.location.href = '/';
+        if (username === 'div.ai') {
+            window.location.href = '/admin.html';
+        } else {
+            window.location.href = '/';
+        }
         return;
     }
 
@@ -202,7 +206,12 @@ if (loginForm) {
             username = data.username;
             localStorage.setItem('token', token);
             localStorage.setItem('username', username);
-            window.location.href = '/'; // Correct redirect
+
+            if (username === 'div.ai') {
+                window.location.href = '/admin.html';
+            } else {
+                window.location.href = '/';
+            }
         } catch (err) {
             handleError(err.message);
         }

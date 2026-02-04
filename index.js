@@ -7,6 +7,46 @@ const fs = require('fs');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
+const Database = require('better-sqlite3');
+
+const db = new Database('cache.db');
+
+// Initialize FAQ Cache Table
+db.exec(`
+  CREATE TABLE IF NOT EXISTS faq_cache (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    question TEXT UNIQUE COLLATE NOCASE,
+    answer TEXT,
+    hits INTEGER DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+
+// Pre-seed common FAQs
+const seedFAQs = [
+    { q: 'hi', a: 'Hello! I am Div.ai. How can I help you today?' },
+    { q: 'hello', a: 'Hi there! I am Div.ai, your intelligent assistant. What\'s on your mind?' },
+    { q: 'hey', a: 'Hey! Ready to assist you. What do you need?' },
+    { q: 'bye', a: 'Goodbye! Have a great day ahead!' },
+    { q: 'how are you', a: 'I\'m doing great, thank you for asking! I\'m ready to help you with anything.' },
+    { q: 'who are you', a: 'I am Div.ai, a powerful AI assistant designed by Divyesh to help you with code, logic, and more.' },
+    { q: 'what is your name', a: 'My name is Div.ai!' },
+    { q: 'ok', a: 'Understood! Anything else?' },
+    { q: 'thanks', a: 'You\'re very welcome! Happy to help.' },
+    { q: 'thank you', a: 'You\'re welcome! I\'m always here if you need more assistance.' }
+];
+
+const insertFaq = db.prepare('INSERT OR IGNORE INTO faq_cache (question, answer) VALUES (?, ?)');
+seedFAQs.forEach(faq => insertFaq.run(faq.q, faq.a));
+
+// Initialize Query Analytics Table
+db.exec(`
+  CREATE TABLE IF NOT EXISTS query_analytics (
+    question TEXT PRIMARY KEY,
+    frequency INTEGER DEFAULT 1,
+    last_asked DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
 
 const JWT_SECRET = process.env.JWT_SECRET || 'div_ai_secret_key_123';
 
@@ -77,6 +117,25 @@ const connectDB = async () => {
         throw err;
     }
 };
+
+// Admin User Initialization
+const initAdminUser = async () => {
+    try {
+        await connectDB();
+        const adminExists = await User.findOne({ username: 'div.ai' });
+        if (!adminExists) {
+            const hashedPassword = await bcrypt.hash('111', 10);
+            const admin = new User({
+                username: 'div.ai',
+                email: 'divyeshh099@gmail.com',
+                password: hashedPassword
+            });
+            await admin.save();
+            console.log('👤 [ADMIN] Admin user created: div.ai');
+        }
+    } catch (e) { console.error('❌ Admin Init Error:', e); }
+};
+initAdminUser();
 
 // Ensure DB is connected for every request
 app.use(async (req, res, next) => {
@@ -304,6 +363,20 @@ app.get('/api/conversations/:id', verifyToken, async (req, res) => {
     }
 });
 
+// 3. Get Admin Stats (Protected)
+app.get('/api/admin/stats', verifyToken, (req, res) => {
+    try {
+        const topFaqs = db.prepare('SELECT * FROM faq_cache ORDER BY hits DESC LIMIT 20').all();
+        const topQueries = db.prepare('SELECT * FROM query_analytics ORDER BY frequency DESC LIMIT 20').all();
+        const totalFaqs = db.prepare('SELECT COUNT(*) as count FROM faq_cache').get().count;
+        const totalHits = db.prepare('SELECT SUM(hits) as count FROM faq_cache').get().count || 0;
+
+        res.json({ topFaqs, topQueries, totalFaqs, totalHits });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Legacy Endpoint (Redirect to newest if possible or empty)
 app.get('/api/history', verifyToken, async (req, res) => {
     try {
@@ -437,11 +510,30 @@ app.post('/api/chat', verifyToken, async (req, res) => {
             parts: [{ text: c.text }]
         }));
 
+        // 3. CHECK CACHE FIRST
+        const normalizedInput = text.trim().toLowerCase().replace(/[?.,!]/g, '');
+        const cachedResponse = db.prepare('SELECT answer FROM faq_cache WHERE question = ?').get(normalizedInput);
+
         let aiText;
-        if (provider === 'llama') {
+        if (cachedResponse) {
+            aiText = cachedResponse.answer;
+            // Update hit count
+            db.prepare('UPDATE faq_cache SET hits = hits + 1 WHERE question = ?').run(normalizedInput);
+        } else if (provider === 'llama') {
             aiText = await callGroq(history);
         } else {
             aiText = await callGemini(history);
+        }
+
+        // 4. Update Query Analytics (Optional: only if not already in FAQ cache)
+        if (!cachedResponse) {
+            db.prepare(`
+                INSERT INTO query_analytics (question, frequency, last_asked) 
+                VALUES (?, 1, CURRENT_TIMESTAMP)
+                ON CONFLICT(question) DO UPDATE SET 
+                frequency = frequency + 1,
+                last_asked = CURRENT_TIMESTAMP
+            `).run(normalizedInput);
         }
 
         const aiMsg = new Chat({ userId, conversationId: conversation._id, role: 'model', text: aiText });
