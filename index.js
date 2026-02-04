@@ -493,8 +493,8 @@ app.post('/api/chat', verifyToken, async (req, res) => {
         // CHECK COOLDOWN FIRST
         const currentUser = await User.findById(userId);
         const now = new Date();
-        const COOLDOWN_MS = 60 * 1000; // 1 minute
-        const MAX_CHATS = 2;
+        const COOLDOWN_MS = 10 * 1000; // 10 seconds
+        const MAX_CHATS = 1;
 
         // Reset counter if cooldown period has passed
         if (currentUser.lastChatTime && (now - currentUser.lastChatTime) >= COOLDOWN_MS) {

@@ -475,7 +475,7 @@ async function sendMessage() {
             body: JSON.stringify({
                 text: text,
                 conversationId: currentConversationId,
-                provider: modelSelector ? modelSelector.value : 'gemini'
+                provider: modelSelector ? modelSelector.value : 'llama'
             })
         });
 
