@@ -86,6 +86,8 @@ body {
     border-right: 1px solid var(--border-color);
     box-shadow: 0 0 50px rgba(0, 0, 0, 0.05);
     /* Soft structure shadow */
+    overflow: hidden;
+    /* Prevent horizontal scroll on container */
 }
 
 /* ... existing styles ... */

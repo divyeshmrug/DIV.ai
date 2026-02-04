@@ -11,6 +11,8 @@
             min-height: 100vh;
             background: var(--bg-color);
             padding: 40px 20px;
+            overflow-x: hidden;
+            overflow-y: auto;
         }
 
         .admin-container {
@@ -22,6 +24,7 @@
             border-radius: 20px;
             border: 1px solid var(--border-color);
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.05);
+            overflow-x: auto;
         }
 
         .admin-header {
@@ -112,6 +115,10 @@
                 padding: 10px 8px;
                 font-size: 0.85rem;
             }
+
+            .section-box {
+                overflow-x: auto;
+            }
         }
 
         .section-box {
@@ -119,6 +126,7 @@
             border-radius: 16px;
             border: 1px solid var(--border-color);
             padding: 20px;
+            overflow-x: auto;
         }
 
         .section-box h2 {
@@ -132,6 +140,7 @@
         table {
             width: 100%;
             border-collapse: collapse;
+            min-width: 400px;
         }
 
         th,
