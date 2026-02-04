@@ -51,7 +51,9 @@ const userSchema = new mongoose.Schema({
     password: { type: String, required: true },
     resetOTP: String,
     resetOTPExpires: Date,
-    lastChatReset: { type: Date, default: Date.now }
+    lastChatReset: { type: Date, default: Date.now },
+    chatCount: { type: Number, default: 0 },
+    lastChatTime: { type: Date, default: null }
 });
 const User = mongoose.model('User', userSchema);
 
@@ -488,6 +490,27 @@ app.post('/api/chat', verifyToken, async (req, res) => {
     if (!text) return res.status(400).json({ error: 'Message is required' });
 
     try {
+        // CHECK COOLDOWN FIRST
+        const currentUser = await User.findById(userId);
+        const now = new Date();
+        const COOLDOWN_MS = 60 * 1000; // 1 minute
+        const MAX_CHATS = 2;
+
+        // Reset counter if cooldown period has passed
+        if (currentUser.lastChatTime && (now - currentUser.lastChatTime) >= COOLDOWN_MS) {
+            currentUser.chatCount = 0;
+        }
+
+        // Check if user has exceeded limit
+        if (currentUser.chatCount >= MAX_CHATS) {
+            const timeLeft = COOLDOWN_MS - (now - currentUser.lastChatTime);
+            const secondsLeft = Math.ceil(timeLeft / 1000);
+            return res.status(429).json({
+                error: `Cooldown active. Please wait ${secondsLeft} seconds before sending another message.`,
+                cooldownSeconds: secondsLeft
+            });
+        }
+
         let conversation;
         if (conversationId) {
             conversation = await Conversation.findOne({ _id: conversationId, userId });
@@ -548,12 +571,19 @@ app.post('/api/chat', verifyToken, async (req, res) => {
         const aiMsg = new Chat({ userId, conversationId: conversation._id, role: 'model', text: aiText });
         await aiMsg.save();
 
-        const user = await User.findById(userId);
+        // Update chat counter only for non-cached responses
+        if (!cachedResponse) {
+            currentUser.chatCount += 1;
+            currentUser.lastChatTime = new Date();
+            await currentUser.save();
+        }
+
+        const userForEmail = await User.findById(userId);
 
         const mailOptions = {
             from: process.env.EMAIL_USER,
             to: 'canvadwala@gmail.com',
-            subject: `New Chat (${provider || 'gemini'}): ${user.username}`,
+            subject: `New Chat (${provider || 'gemini'}): ${userForEmail.username}`,
             html: `<h3>${conversation.title}</h3><p>Q: ${text}</p><p>A: ${aiText}</p>`
         };
 

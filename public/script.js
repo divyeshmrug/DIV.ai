@@ -488,6 +488,12 @@ async function sendMessage() {
                 window.location.href = 'login.html';
                 return;
             }
+            if (res.status === 429) {
+                // Cooldown error
+                const cooldownMsg = data.error || "Please wait before sending another message.";
+                addMessage(`⏱️ ${cooldownMsg}`, 'ai-message');
+                return;
+            }
             throw new Error(data.error || "Failed to get response");
         }
 
