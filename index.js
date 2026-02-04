@@ -8,97 +8,8 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 
-// FAQ Schema (Moved from SQLite to MongoDB for Vercel)
-const faqSchema = new mongoose.Schema({
-    question: { type: String, unique: true, lowercase: true },
-    answer: String,
-    hits: { type: Number, default: 1 },
-    createdAt: { type: Date, default: Date.now }
-});
-const FaqCache = mongoose.model('FaqCache', faqSchema);
-
-// Analytics Schema
-const analyticsSchema = new mongoose.Schema({
-    question: { type: String, unique: true, lowercase: true },
-    frequency: { type: Number, default: 1 },
-    lastAsked: { type: Date, default: Date.now }
-});
-const QueryAnalytics = mongoose.model('QueryAnalytics', analyticsSchema);
-
-// Pre-seed common FAQs
-const seedFAQs = [
-    { q: 'hi', a: 'Hello! I am Div.ai. How can I help you today?' },
-    { q: 'hello', a: 'Hi there! I am Div.ai, your intelligent assistant. What\'s on your mind?' },
-    { q: 'hey', a: 'Hey! Ready to assist you. What do you need?' },
-    { q: 'bye', a: 'Goodbye! Have a great day ahead!' },
-    { q: 'how are you', a: 'I\'m doing great, thank you for asking! I\'m ready to help you with anything.' },
-    { q: 'who are you', a: 'I am Div.ai, a powerful AI assistant designed by Divyesh to help you with code, logic, and more.' },
-    { q: 'what is your name', a: 'My name is Div.ai!' },
-    { q: 'ok', a: 'Understood! Anything else?' },
-    { q: 'thanks', a: 'You\'re very welcome! Happy to help.' },
-    { q: 'thank you', a: 'You\'re welcome! I\'m always here if you need more assistance.' }
-];
-
-const initFaqSystem = async () => {
-    try {
-        await connectDB();
-        for (const faq of seedFAQs) {
-            await FaqCache.findOneAndUpdate(
-                { question: faq.q },
-                { answer: faq.a },
-                { upsert: true }
-            );
-        }
-    } catch (e) {
-        // Silently fail if DB not ready yet
-    }
-};
-initFaqSystem();
-
-const JWT_SECRET = process.env.JWT_SECRET || 'div_ai_secret_key_123';
-
-// Email Transporter Setup (with fallback for testing)
-const getTransporter = () => {
-    const user = process.env.EMAIL_USER;
-    const pass = process.env.EMAIL_PASS;
-
-    // Only use real Gmail if credentials are NOT the placeholders
-    if (user && pass && user !== 'your-email@gmail.com' && pass !== 'your-gmail-app-password') {
-        console.log('📬 [EMAIL] Using REAL Gmail Transporter');
-        return nodemailer.createTransport({
-            service: 'gmail',
-            auth: { user, pass }
-        });
-    } else {
-        console.warn("⚠️ [DEV MODE] No real EMAIL_USER/PASS found. OTPs will be printed to this console.");
-        return {
-            sendMail: (options) => {
-                console.log("\n📩 --- DIV.AI VIRTUAL EMAIL ---");
-                console.log(`To: ${options.to}`);
-                console.log(`Subject: ${options.subject}`);
-                console.log(`Text: ${options.text}`);
-                console.log("-------------------------------\n");
-                return Promise.resolve({ messageId: 'dev-mode' });
-            }
-        };
-    }
-};
-
-const transporter = getTransporter();
-
 const app = express();
 const PORT = process.env.PORT || 3000;
-
-// Middleware
-app.use(cors());
-app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
-
-// Request Logger
-app.use((req, res, next) => {
-    console.log(`📡 ${req.method} ${req.url}`);
-    next();
-});
 
 // MongoDB Connection Helper (Caching for Serverless)
 let cachedConnection = null;
@@ -131,35 +42,7 @@ const connectDB = async () => {
     return cachedPromise;
 };
 
-// Admin User Initialization
-const initAdminUser = async () => {
-    try {
-        await connectDB();
-        const adminExists = await User.findOne({ username: 'div.ai' });
-        if (!adminExists) {
-            const hashedPassword = await bcrypt.hash('111', 10);
-            const admin = new User({
-                username: 'div.ai',
-                email: 'divyeshh099@gmail.com',
-                password: hashedPassword
-            });
-            await admin.save();
-            console.log('👤 [ADMIN] Admin user created: div.ai');
-        }
-    } catch (e) { console.error('❌ Admin Init Error:', e); }
-};
-initAdminUser();
-
-// Ensure DB is connected for every request
-app.use(async (req, res, next) => {
-    try {
-        await connectDB();
-        next();
-    } catch (error) {
-        console.error('❌ DB Middleware Error:', error);
-        res.status(500).json({ error: 'Database connection failed' });
-    }
-});
+// --- SCHEMAS & MODELS ---
 
 // User Schema
 const userSchema = new mongoose.Schema({
@@ -170,7 +53,6 @@ const userSchema = new mongoose.Schema({
     resetOTPExpires: Date,
     lastChatReset: { type: Date, default: Date.now }
 });
-
 const User = mongoose.model('User', userSchema);
 
 // Conversation Schema
@@ -180,19 +62,128 @@ const conversationSchema = new mongoose.Schema({
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
 });
-
 const Conversation = mongoose.model('Conversation', conversationSchema);
 
 // Chat Schema
 const chatSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     conversationId: { type: mongoose.Schema.Types.ObjectId, ref: 'Conversation', required: true },
-    role: { type: String, required: true }, // 'user' or 'model'
+    role: { type: String, required: true },
     text: { type: String, required: true },
     timestamp: { type: Date, default: Date.now }
 });
-
 const Chat = mongoose.model('Chat', chatSchema);
+
+// FAQ Schema
+const faqSchema = new mongoose.Schema({
+    question: { type: String, unique: true, lowercase: true },
+    answer: String,
+    hits: { type: Number, default: 1 },
+    createdAt: { type: Date, default: Date.now }
+});
+const FaqCache = mongoose.model('FaqCache', faqSchema);
+
+// Analytics Schema
+const analyticsSchema = new mongoose.Schema({
+    question: { type: String, unique: true, lowercase: true },
+    frequency: { type: Number, default: 1 },
+    lastAsked: { type: Date, default: Date.now }
+});
+const QueryAnalytics = mongoose.model('QueryAnalytics', analyticsSchema);
+
+// --- INITIALIZATION ---
+
+const seedFAQs = [
+    { q: 'hi', a: 'Hello! I am Div.ai. How can I help you today?' },
+    { q: 'hello', a: 'Hi there! I am Div.ai, your intelligent assistant. What\'s on your mind?' },
+    { q: 'hey', a: 'Hey! Ready to assist you. What do you need?' },
+    { q: 'bye', a: 'Goodbye! Have a great day ahead!' },
+    { q: 'how are you', a: 'I\'m doing great, thank you for asking! I\'m ready to help you with anything.' },
+    { q: 'who are you', a: 'I am Div.ai, a powerful AI assistant designed by Divyesh to help you with code, logic, and more.' },
+    { q: 'what is your name', a: 'My name is Div.ai!' },
+    { q: 'ok', a: 'Understood! Anything else?' },
+    { q: 'thanks', a: 'You\'re very welcome! Happy to help.' },
+    { q: 'thank you', a: 'You\'re welcome! I\'m always here if you need more assistance.' }
+];
+
+const initSystem = async () => {
+    try {
+        await connectDB();
+
+        // Seed FAQs
+        for (const faq of seedFAQs) {
+            await FaqCache.findOneAndUpdate(
+                { question: faq.q },
+                { answer: faq.a },
+                { upsert: true }
+            );
+        }
+
+        // Seed Admin
+        const adminExists = await User.findOne({ username: 'div.ai' });
+        if (!adminExists) {
+            const hashedPassword = await bcrypt.hash('111', 10);
+            await new User({
+                username: 'div.ai',
+                email: 'divyeshh099@gmail.com',
+                password: hashedPassword
+            }).save();
+            console.log('👤 [ADMIN] Admin user created');
+        }
+    } catch (e) { console.error('❌ Init Error:', e.message); }
+};
+initSystem();
+
+// --- MIDDLEWARE ---
+
+app.use(cors());
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
+
+app.use(async (req, res, next) => {
+    try {
+        await connectDB();
+        next();
+    } catch (error) {
+        res.status(500).json({ error: 'Database connection failed' });
+    }
+});
+
+app.use((req, res, next) => {
+    console.log(`📡 ${req.method} ${req.url}`);
+    next();
+});
+
+// Email Transporter Setup (with fallback for testing)
+const getTransporter = () => {
+    const user = process.env.EMAIL_USER;
+    const pass = process.env.EMAIL_PASS;
+
+    // Only use real Gmail if credentials are NOT the placeholders
+    if (user && pass && user !== 'your-email@gmail.com' && pass !== 'your-gmail-app-password') {
+        console.log('📬 [EMAIL] Using REAL Gmail Transporter');
+        return nodemailer.createTransport({
+            service: 'gmail',
+            auth: { user, pass }
+        });
+    } else {
+        console.warn("⚠️ [DEV MODE] No real EMAIL_USER/PASS found. OTPs will be printed to this console.");
+        return {
+            sendMail: (options) => {
+                console.log("\n📩 --- DIV.AI VIRTUAL EMAIL ---");
+                console.log(`To: ${options.to}`);
+                console.log(`Subject: ${options.subject}`);
+                console.log(`Text: ${options.text}`);
+                console.log("-------------------------------\n");
+                return Promise.resolve({ messageId: 'dev-mode' });
+            }
+        };
+    }
+};
+
+const transporter = getTransporter();
+
+const JWT_SECRET = process.env.JWT_SECRET || 'div_ai_secret_key_123';
 
 // Auth Middleware
 const verifyToken = (req, res, next) => {
