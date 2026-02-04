@@ -152,6 +152,26 @@ header {
     align-items: center;
 }
 
+.model-select {
+    background: rgba(255, 255, 255, 0.7);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-color);
+    cursor: pointer;
+    outline: none;
+    transition: 0.3s;
+    font-family: var(--font-main);
+}
+
+.model-select:hover {
+    background: white;
+    border-color: var(--secondary-color);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
 header button {
     background: white;
     border: 1px solid var(--border-color);
@@ -518,6 +538,7 @@ textarea:focus {
     letter-spacing: -1px;
     background: var(--gradient-btn);
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
     margin-top: 20px;
 }

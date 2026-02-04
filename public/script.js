@@ -30,6 +30,7 @@ const historySidebar = document.getElementById('history-sidebar');
 const historyList = document.getElementById('history-list');
 const newChatSidebarBtn = document.getElementById('new-chat-sidebar-btn');
 const closeHistoryBtn = document.getElementById('close-history-btn');
+const modelSelector = document.getElementById('model-selector');
 
 // Base URL for Backend
 const API_URL = '/api';
@@ -462,7 +463,11 @@ async function sendMessage() {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify({ text: text, conversationId: currentConversationId })
+            body: JSON.stringify({
+                text: text,
+                conversationId: currentConversationId,
+                provider: modelSelector ? modelSelector.value : 'gemini'
+            })
         });
 
         const data = await res.json();

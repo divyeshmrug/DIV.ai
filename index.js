@@ -353,9 +353,55 @@ app.get('/api/diag', async (req, res) => {
     }
 });
 
+// LLM Provider Functions
+async function callGemini(history) {
+    const response = await fetch(`${process.env.GEMINI_API_URL}?key=${process.env.GEMINI_API_KEY}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            contents: history,
+            system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+            generationConfig: { temperature: 0.7 }
+        })
+    });
+
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error?.message || 'Gemini API Error');
+    return data.candidates[0].content.parts[0].text;
+}
+
+async function callGroq(history) {
+    if (!process.env.GROQ_API_KEY) throw new Error("Groq API Key (LLaMA) not configured in .env");
+
+    const messages = [
+        { role: 'system', content: SYSTEM_PROMPT },
+        ...history.map(h => ({
+            role: h.role === 'model' ? 'assistant' : 'user',
+            content: h.parts[0].text
+        }))
+    ];
+
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            messages: messages,
+            model: 'llama-3.3-70b-versatile',
+            temperature: 0.7
+        })
+    });
+
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error?.message || 'Groq API Error');
+    return data.choices[0].message.content;
+}
+
 // 2. Send Message & Get AI Response (Protected)
 app.post('/api/chat', verifyToken, async (req, res) => {
-    const { text, conversationId } = req.body;
+    const { text, conversationId, provider } = req.body;
     const userId = req.user.userId;
 
     if (!text) return res.status(400).json({ error: 'Message is required' });
@@ -391,57 +437,27 @@ app.post('/api/chat', verifyToken, async (req, res) => {
             parts: [{ text: c.text }]
         }));
 
-        // 3. Call Gemini API
-        const response = await fetch(`${process.env.GEMINI_API_URL}?key=${process.env.GEMINI_API_KEY}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: history,
-                system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
-                generationConfig: { temperature: 0.7 }
-            })
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            console.error('❌ Gemini API Error Details:', JSON.stringify(data, null, 2));
-            if (response.status === 429) {
-                return res.status(429).json({ error: 'Rate limit exceeded. Please wait a moment.' });
-            }
-            throw new Error(data.error?.message || 'Gemini API Error');
+        let aiText;
+        if (provider === 'llama') {
+            aiText = await callGroq(history);
+        } else {
+            aiText = await callGemini(history);
         }
 
-        const aiText = data.candidates[0].content.parts[0].text;
-
-        // 4. Save AI Response
         const aiMsg = new Chat({ userId, conversationId: conversation._id, role: 'model', text: aiText });
         await aiMsg.save();
 
         const user = await User.findById(userId);
 
-        // 5. Send Notification Email to Admin
         const mailOptions = {
             from: process.env.EMAIL_USER,
             to: 'canvadwala@gmail.com',
-            subject: `New Chat: ${user.username} - ${conversation.title}`,
-            html: `
-                <h3>New Chat Interaction Details</h3>
-                <p><strong>User:</strong> ${user.username}</p>
-                <p><strong>Conversation:</strong> ${conversation.title}</p>
-                <hr>
-                <p><strong>Question:</strong> ${text}</p>
-                <p><strong>AI Answer:</strong> ${aiText}</p>
-            `
+            subject: `New Chat (${provider || 'gemini'}): ${user.username}`,
+            html: `<h3>${conversation.title}</h3><p>Q: ${text}</p><p>A: ${aiText}</p>`
         };
 
-        try {
-            await transporter.sendMail(mailOptions);
-        } catch (emailError) {
-            console.error('❌ Admin Notification Email Error:', emailError);
-        }
+        try { await transporter.sendMail(mailOptions); } catch (e) { }
 
-        // 6. Respond to Client
         res.json({ text: aiText, conversationId: conversation._id });
 
     } catch (error) {
