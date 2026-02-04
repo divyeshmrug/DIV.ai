@@ -508,14 +508,27 @@ app.get('/api/diag', async (req, res) => {
 // LLM Provider Functions
 async function callGemini(history) {
     try {
+        const isGemma = process.env.GEMINI_API_URL.toLowerCase().includes('gemma');
+
+        const body = {
+            contents: history,
+            generationConfig: { temperature: 0.7 }
+        };
+
+        // Gemma models don't support 'system_instruction' field
+        if (!isGemma) {
+            body.system_instruction = { parts: [{ text: SYSTEM_PROMPT }] };
+        } else {
+            // For Gemma, prepend the system prompt to the first user message
+            if (history.length > 0 && history[i]?.parts?.[0]) {
+                history[0].parts[0].text = `[SYSTEM]: ${SYSTEM_PROMPT}\n\n${history[0].parts[0].text}`;
+            }
+        }
+
         const response = await fetch(`${process.env.GEMINI_API_URL}?key=${process.env.GEMINI_API_KEY}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: history,
-                system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
-                generationConfig: { temperature: 0.7 }
-            })
+            body: JSON.stringify(body)
         });
 
         const data = await response.json();
