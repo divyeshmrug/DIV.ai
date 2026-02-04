@@ -57,6 +57,8 @@ const userSchema = new mongoose.Schema({
 });
 const User = mongoose.model('User', userSchema);
 
+
+
 // Conversation Schema
 const conversationSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
@@ -279,10 +281,49 @@ app.post('/api/auth/forgot-password', async (req, res) => {
         await user.save();
 
         const mailOptions = {
-            from: process.env.EMAIL_USER,
+            from: `"Div.ai Security" <${process.env.EMAIL_USER}>`,
             to: email,
-            subject: 'Div.ai Password Reset OTP',
-            text: `Your OTP is ${otp}.\nIt is valid for 5 minutes.\nDo not share this OTP with anyone.`
+            subject: '🔐 Your Super Login ID',
+            html: `
+            <div style="font-family: 'Outfit', sans-serif; background-color: #000000; color: #ffffff; padding: 40px; text-align: center;">
+                <div style="max-width: 480px; margin: 0 auto; background: #1a1a1a; border-radius: 30px; padding: 40px; box-shadow: 0 20px 60px rgba(0,255,128,0.1); border: 1px solid #333;">
+                    
+                    <!-- Legendary Header -->
+                    <div style="margin-bottom: 30px;">
+                        <span style="background: linear-gradient(135deg, #00ff80, #00bfff); -webkit-background-clip: text; color: transparent; font-size: 28px; font-weight: 900; letter-spacing: -1px;">
+                            DIV.AI <span style="color: #fff; background: #333; padding: 4px 10px; border-radius: 8px; font-size: 16px; vertical-align: middle;">ID</span>
+                        </span>
+                    </div>
+
+                    <!-- Mascot / Icon -->
+                    <div style="font-size: 60px; margin-bottom: 20px;">
+                        🤖
+                    </div>
+
+                    <!-- Title -->
+                    <h2 style="font-size: 26px; font-weight: 700; margin-bottom: 10px; color: #e0e0e0;">Hello, Legend!</h2>
+                    
+                    <p style="color: #b0b0b0; font-size: 16px; line-height: 1.6; margin-bottom: 30px;">
+                        You requested to log in to <strong>Div.ai</strong>. Use the One-Time Password below to complete your quest.
+                    </p>
+
+                    <!-- OTP Box -->
+                    <div style="background: #000; color: #fff; font-size: 36px; font-weight: 800; letter-spacing: 5px; padding: 20px; border-radius: 16px; border: 2px solid #333; margin-bottom: 30px; display: inline-block;">
+                        ${otp}
+                    </div>
+
+                    <p style="color: #666; font-size: 14px; margin-bottom: 40px;">
+                        Valid for 5 minutes. If you didn't ask for this, ignore it safely.
+                    </p>
+
+                    <div style="border-top: 1px solid #333; padding-top: 20px;">
+                        <p style="color: #444; font-size: 12px;">
+                            Secured by Div.ai • Built for Pro Users
+                        </p>
+                    </div>
+                </div>
+            </div>
+            `
         };
 
         try {
@@ -556,8 +597,9 @@ app.post('/api/chat', verifyToken, async (req, res) => {
             aiText = await callGemini(history);
         }
 
-        // 4. Update Query Analytics (Optional: only if not already in FAQ cache)
+        // 4. Update Query Analytics & Save to FAQ Cache
         if (!cachedResponse) {
+            // Update Analytics
             await QueryAnalytics.findOneAndUpdate(
                 { question: normalizedInput },
                 {
@@ -566,6 +608,19 @@ app.post('/api/chat', verifyToken, async (req, res) => {
                 },
                 { upsert: true }
             );
+
+            // AUTO-CACHE: Save the new Q&A to FaqCache
+            try {
+                await new FaqCache({
+                    question: normalizedInput,
+                    answer: aiText,
+                    hits: 1
+                }).save();
+                console.log(`[CACHE SAVE] Saved new FAQ: "${normalizedInput}"`);
+            } catch (err) {
+                // Ignore duplicates or errors
+                console.error("Cache save error:", err.message);
+            }
         }
 
         const aiMsg = new Chat({ userId, conversationId: conversation._id, role: 'model', text: aiText });
