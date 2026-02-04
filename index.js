@@ -7,20 +7,23 @@ const fs = require('fs');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
-const Database = require('better-sqlite3');
 
-const db = new Database('cache.db');
+// FAQ Schema (Moved from SQLite to MongoDB for Vercel)
+const faqSchema = new mongoose.Schema({
+    question: { type: String, unique: true, lowercase: true },
+    answer: String,
+    hits: { type: Number, default: 1 },
+    createdAt: { type: Date, default: Date.now }
+});
+const FaqCache = mongoose.model('FaqCache', faqSchema);
 
-// Initialize FAQ Cache Table
-db.exec(`
-  CREATE TABLE IF NOT EXISTS faq_cache (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    question TEXT UNIQUE COLLATE NOCASE,
-    answer TEXT,
-    hits INTEGER DEFAULT 1,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
-`);
+// Analytics Schema
+const analyticsSchema = new mongoose.Schema({
+    question: { type: String, unique: true, lowercase: true },
+    frequency: { type: Number, default: 1 },
+    lastAsked: { type: Date, default: Date.now }
+});
+const QueryAnalytics = mongoose.model('QueryAnalytics', analyticsSchema);
 
 // Pre-seed common FAQs
 const seedFAQs = [
@@ -36,17 +39,21 @@ const seedFAQs = [
     { q: 'thank you', a: 'You\'re welcome! I\'m always here if you need more assistance.' }
 ];
 
-const insertFaq = db.prepare('INSERT OR IGNORE INTO faq_cache (question, answer) VALUES (?, ?)');
-seedFAQs.forEach(faq => insertFaq.run(faq.q, faq.a));
-
-// Initialize Query Analytics Table
-db.exec(`
-  CREATE TABLE IF NOT EXISTS query_analytics (
-    question TEXT PRIMARY KEY,
-    frequency INTEGER DEFAULT 1,
-    last_asked DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
-`);
+const initFaqSystem = async () => {
+    try {
+        await connectDB();
+        for (const faq of seedFAQs) {
+            await FaqCache.findOneAndUpdate(
+                { question: faq.q },
+                { answer: faq.a },
+                { upsert: true }
+            );
+        }
+    } catch (e) {
+        // Silently fail if DB not ready yet
+    }
+};
+initFaqSystem();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'div_ai_secret_key_123';
 
@@ -364,12 +371,16 @@ app.get('/api/conversations/:id', verifyToken, async (req, res) => {
 });
 
 // 3. Get Admin Stats (Protected)
-app.get('/api/admin/stats', verifyToken, (req, res) => {
+app.get('/api/admin/stats', verifyToken, async (req, res) => {
     try {
-        const topFaqs = db.prepare('SELECT * FROM faq_cache ORDER BY hits DESC LIMIT 20').all();
-        const topQueries = db.prepare('SELECT * FROM query_analytics ORDER BY frequency DESC LIMIT 20').all();
-        const totalFaqs = db.prepare('SELECT COUNT(*) as count FROM faq_cache').get().count;
-        const totalHits = db.prepare('SELECT SUM(hits) as count FROM faq_cache').get().count || 0;
+        const topFaqs = await FaqCache.find().sort({ hits: -1 }).limit(20);
+        const topQueries = await QueryAnalytics.find().sort({ frequency: -1 }).limit(20);
+        const totalFaqs = await FaqCache.countDocuments();
+
+        const hitsResult = await FaqCache.aggregate([
+            { $group: { _id: null, total: { $sum: "$hits" } } }
+        ]);
+        const totalHits = hitsResult.length > 0 ? hitsResult[0].total : 0;
 
         res.json({ topFaqs, topQueries, totalFaqs, totalHits });
     } catch (error) {
@@ -512,13 +523,13 @@ app.post('/api/chat', verifyToken, async (req, res) => {
 
         // 3. CHECK CACHE FIRST
         const normalizedInput = text.trim().toLowerCase().replace(/[?.,!]/g, '');
-        const cachedResponse = db.prepare('SELECT answer FROM faq_cache WHERE question = ?').get(normalizedInput);
+        const cachedResponse = await FaqCache.findOne({ question: normalizedInput });
 
         let aiText;
         if (cachedResponse) {
             aiText = cachedResponse.answer;
             // Update hit count
-            db.prepare('UPDATE faq_cache SET hits = hits + 1 WHERE question = ?').run(normalizedInput);
+            await FaqCache.updateOne({ question: normalizedInput }, { $inc: { hits: 1 } });
         } else if (provider === 'llama') {
             aiText = await callGroq(history);
         } else {
@@ -527,13 +538,14 @@ app.post('/api/chat', verifyToken, async (req, res) => {
 
         // 4. Update Query Analytics (Optional: only if not already in FAQ cache)
         if (!cachedResponse) {
-            db.prepare(`
-                INSERT INTO query_analytics (question, frequency, last_asked) 
-                VALUES (?, 1, CURRENT_TIMESTAMP)
-                ON CONFLICT(question) DO UPDATE SET 
-                frequency = frequency + 1,
-                last_asked = CURRENT_TIMESTAMP
-            `).run(normalizedInput);
+            await QueryAnalytics.findOneAndUpdate(
+                { question: normalizedInput },
+                {
+                    $inc: { frequency: 1 },
+                    $set: { lastAsked: new Date() }
+                },
+                { upsert: true }
+            );
         }
 
         const aiMsg = new Chat({ userId, conversationId: conversation._id, role: 'model', text: aiText });
