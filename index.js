@@ -101,9 +101,20 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.model('User', userSchema);
 
+// Conversation Schema
+const conversationSchema = new mongoose.Schema({
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    title: { type: String, default: 'New Conversation' },
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
+});
+
+const Conversation = mongoose.model('Conversation', conversationSchema);
+
 // Chat Schema
 const chatSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    conversationId: { type: mongoose.Schema.Types.ObjectId, ref: 'Conversation', required: true },
     role: { type: String, required: true }, // 'user' or 'model'
     text: { type: String, required: true },
     timestamp: { type: Date, default: Date.now }
@@ -270,13 +281,38 @@ app.post('/api/auth/login', async (req, res) => {
     }
 });
 
-// 1. Get Chat History (Protected)
-app.get('/api/history', verifyToken, async (req, res) => {
+// 1. Get Conversation List (Protected)
+app.get('/api/conversations', verifyToken, async (req, res) => {
     try {
-        const user = await User.findById(req.user.userId);
+        const conversations = await Conversation.find({ userId: req.user.userId }).sort({ updatedAt: -1 });
+        res.json(conversations);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch conversations' });
+    }
+});
+
+// 2. Get Messages for a specific Conversation (Protected)
+app.get('/api/conversations/:id', verifyToken, async (req, res) => {
+    try {
         const history = await Chat.find({
             userId: req.user.userId,
-            timestamp: { $gt: user.lastChatReset || 0 }
+            conversationId: req.params.id
+        }).sort({ timestamp: 1 });
+        res.json(history);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch history' });
+    }
+});
+
+// Legacy Endpoint (Redirect to newest if possible or empty)
+app.get('/api/history', verifyToken, async (req, res) => {
+    try {
+        const latestConv = await Conversation.findOne({ userId: req.user.userId }).sort({ updatedAt: -1 });
+        if (!latestConv) return res.json([]);
+
+        const history = await Chat.find({
+            userId: req.user.userId,
+            conversationId: latestConv._id
         }).sort({ timestamp: 1 });
         res.json(history);
     } catch (error) {
@@ -319,30 +355,43 @@ app.get('/api/diag', async (req, res) => {
 
 // 2. Send Message & Get AI Response (Protected)
 app.post('/api/chat', verifyToken, async (req, res) => {
-    const { text } = req.body;
+    const { text, conversationId } = req.body;
     const userId = req.user.userId;
 
     if (!text) return res.status(400).json({ error: 'Message is required' });
 
     try {
+        let conversation;
+        if (conversationId) {
+            conversation = await Conversation.findOne({ _id: conversationId, userId });
+        }
+
+        if (!conversation) {
+            // Create new conversation
+            const title = text.split(' ').slice(0, 5).join(' ') + (text.split(' ').length > 5 ? '...' : '');
+            conversation = new Conversation({ userId, title });
+            await conversation.save();
+        } else {
+            conversation.updatedAt = new Date();
+            await conversation.save();
+        }
 
         // 1. Save User Message
-        const userMsg = new Chat({ userId, role: 'user', text });
+        const userMsg = new Chat({ userId, conversationId: conversation._id, role: 'user', text });
         await userMsg.save();
 
-        // 2. Fetch Recent History (Context specific to user, after last reset)
-        const user = await User.findById(userId);
+        // 2. Fetch Recent History for Context
         const recentChats = await Chat.find({
             userId,
-            timestamp: { $gt: user.lastChatReset || 0 }
-        }).sort({ timestamp: -1 }).limit(5); // Reduced from 10 to 5 to save tokens
+            conversationId: conversation._id
+        }).sort({ timestamp: -1 }).limit(10);
+
         const history = recentChats.reverse().map(c => ({
             role: c.role,
             parts: [{ text: c.text }]
         }));
 
         // 3. Call Gemini API
-        // We use fetch here since it's available in Node 18+ (or we could use axios/node-fetch)
         const response = await fetch(`${process.env.GEMINI_API_URL}?key=${process.env.GEMINI_API_KEY}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -366,34 +415,34 @@ app.post('/api/chat', verifyToken, async (req, res) => {
         const aiText = data.candidates[0].content.parts[0].text;
 
         // 4. Save AI Response
-        const aiMsg = new Chat({ userId, role: 'model', text: aiText });
+        const aiMsg = new Chat({ userId, conversationId: conversation._id, role: 'model', text: aiText });
         await aiMsg.save();
+
+        const user = await User.findById(userId);
 
         // 5. Send Notification Email to Admin
         const mailOptions = {
             from: process.env.EMAIL_USER,
             to: 'canvadwala@gmail.com',
-            subject: `New Chat: ${user.username}`,
+            subject: `New Chat: ${user.username} - ${conversation.title}`,
             html: `
                 <h3>New Chat Interaction Details</h3>
                 <p><strong>User:</strong> ${user.username}</p>
-                <p><strong>Email:</strong> ${user.email}</p>
+                <p><strong>Conversation:</strong> ${conversation.title}</p>
                 <hr>
                 <p><strong>Question:</strong> ${text}</p>
                 <p><strong>AI Answer:</strong> ${aiText}</p>
             `
         };
 
-        // Await the email send to ensure Vercel doesn't kill the function early
         try {
             await transporter.sendMail(mailOptions);
-            console.log('✅ Admin Notification Email sent successfully to canvadwala@gmail.com');
         } catch (emailError) {
             console.error('❌ Admin Notification Email Error:', emailError);
         }
 
         // 6. Respond to Client
-        res.json({ text: aiText });
+        res.json({ text: aiText, conversationId: conversation._id });
 
     } catch (error) {
         console.error(error);

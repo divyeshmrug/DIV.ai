@@ -25,6 +25,11 @@ const rateSlider = document.getElementById('rate-slider');
 const newChatBtn = document.getElementById('new-chat-btn');
 const linkForgot = document.getElementById('link-forgot');
 const linksBackLogin = document.querySelectorAll('.link-back-login');
+const toggleHistoryBtn = document.getElementById('toggle-history-btn');
+const historySidebar = document.getElementById('history-sidebar');
+const historyList = document.getElementById('history-list');
+const newChatSidebarBtn = document.getElementById('new-chat-sidebar-btn');
+const closeHistoryBtn = document.getElementById('close-history-btn');
 
 // Base URL for Backend
 const API_URL = '/api';
@@ -33,6 +38,7 @@ const API_URL = '/api';
 let token = localStorage.getItem('token');
 let username = localStorage.getItem('username');
 let resetEmail = ''; // To store email during reset flow
+let currentConversationId = null;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
@@ -120,7 +126,7 @@ function showApp() {
     }
     if (newChatBtn) newChatBtn.style.display = 'block';
 
-    loadHistory();
+    loadConversationList();
 }
 
 function handleError(err) {
@@ -288,27 +294,121 @@ if (logoutBtn) {
     };
 }
 
-// New Chat
-if (newChatBtn) {
-    newChatBtn.onclick = async () => {
-        if (!confirm("Are you sure you want to clear your chat history?")) return;
+// --- Sidebar & Conversation Logic ---
 
-        try {
-            const res = await fetch(`${API_URL}/history`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-
-            if (!res.ok) throw new Error("Failed to clear history");
-
-            chatHistory.innerHTML = '';
-            chatHistory.appendChild(typingIndicator);
-            addMessage(`Welcome back ${username}! Let's start a fresh conversation.`, 'ai-message');
-        } catch (err) {
-            console.error(err);
-            alert(err.message);
-        }
+if (toggleHistoryBtn) {
+    toggleHistoryBtn.onclick = () => {
+        historySidebar.classList.toggle('active');
     };
+}
+
+if (closeHistoryBtn) {
+    closeHistoryBtn.onclick = () => {
+        historySidebar.classList.remove('active');
+    };
+}
+
+if (newChatSidebarBtn) {
+    newChatSidebarBtn.onclick = () => {
+        createNewChat();
+    };
+}
+
+if (newChatBtn) {
+    newChatBtn.onclick = () => {
+        createNewChat();
+    };
+}
+
+function createNewChat() {
+    currentConversationId = null;
+    chatHistory.innerHTML = '';
+    chatHistory.appendChild(typingIndicator);
+    addMessage(`Welcome back ${username}! Let's start a fresh conversation.`, 'ai-message');
+
+    // Clear active state in sidebar
+    document.querySelectorAll('.history-item').forEach(item => item.classList.remove('active'));
+
+    // Auto-focus input
+    if (userInput) userInput.focus();
+}
+
+async function loadConversationList() {
+    if (!historyList) return;
+
+    try {
+        const res = await fetch(`${API_URL}/conversations`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const conversations = await res.json();
+
+        if (!res.ok) throw new Error("Failed to fetch conversations");
+
+        historyList.innerHTML = '';
+        if (conversations.length === 0) {
+            historyList.innerHTML = '<div class="history-item">No recent chats</div>';
+            loadConversationMessages(null); // Load empty/default
+            return;
+        }
+
+        conversations.forEach(conv => {
+            const item = document.createElement('div');
+            item.className = 'history-item';
+            if (conv._id === currentConversationId) item.classList.add('active');
+
+            item.innerHTML = `
+                <div class="conv-info">
+                    <div class="conv-title">${escapeHtml(conv.title)}</div>
+                    <div class="conv-date" style="font-size:0.7rem; color:rgba(0,0,0,0.4)">${new Date(conv.updatedAt).toLocaleDateString()}</div>
+                </div>
+            `;
+
+            item.onclick = () => {
+                document.querySelectorAll('.history-item').forEach(i => i.classList.remove('active'));
+                item.classList.add('active');
+                loadConversationMessages(conv._id);
+                if (window.innerWidth < 768) historySidebar.classList.remove('active');
+            };
+
+            historyList.appendChild(item);
+        });
+
+        // Load latest if none active
+        if (!currentConversationId && conversations.length > 0) {
+            loadConversationMessages(conversations[0]._id);
+            historyList.firstChild.classList.add('active');
+        } else if (conversations.length === 0) {
+            addMessage(`Welcome ${username}! I am Div.ai. How can I help you today?`, 'ai-message');
+        }
+
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+async function loadConversationMessages(id) {
+    if (!id) return;
+    currentConversationId = id;
+
+    try {
+        const res = await fetch(`${API_URL}/conversations/${id}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const history = await res.json();
+
+        chatHistory.innerHTML = '';
+        chatHistory.appendChild(typingIndicator);
+
+        if (history.length === 0) {
+            addMessage(`This conversation is empty.`, 'ai-message');
+        } else {
+            history.forEach(msg => {
+                addMessage(msg.text, msg.role === 'user' ? 'user-message' : 'ai-message');
+            });
+        }
+    } catch (err) {
+        console.error(err);
+    }
 }
 
 // --- Chat Functions ---
@@ -334,33 +434,7 @@ if (sendBtn) {
     sendBtn.addEventListener('click', sendMessage);
 }
 
-async function loadHistory() {
-    try {
-        const response = await fetch(`${API_URL}/history`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-
-        if (response.status === 401 || response.status === 400) {
-            logoutBtn.onclick();
-            return;
-        }
-
-        const history = await response.json();
-        chatHistory.innerHTML = ''; // Clear existing
-        chatHistory.appendChild(typingIndicator); // Re-add typing indicator
-
-        if (history.length === 0) {
-            addMessage(`Welcome ${username}! I am Div.ai. How can I help you today?`, 'ai-message');
-        } else {
-            history.forEach(msg => {
-                addMessage(msg.text, msg.role === 'user' ? 'user-message' : 'ai-message');
-            });
-        }
-        scrollToBottom();
-    } catch (err) {
-        console.error("Failed to load history:", err);
-    }
-}
+// Removed legacy loadHistory function
 
 async function sendMessage() {
     if (!userInput) return;
@@ -388,7 +462,7 @@ async function sendMessage() {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify({ text: text })
+            body: JSON.stringify({ text: text, conversationId: currentConversationId })
         });
 
         const data = await res.json();
@@ -401,6 +475,11 @@ async function sendMessage() {
                 return;
             }
             throw new Error(data.error || "Failed to get response");
+        }
+
+        if (!currentConversationId) {
+            currentConversationId = data.conversationId;
+            loadConversationList(); // Refresh list to show new title
         }
 
         addMessage(data.text, 'ai-message');
