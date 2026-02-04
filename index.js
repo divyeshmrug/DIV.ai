@@ -520,7 +520,7 @@ async function callGemini(history) {
             body.system_instruction = { parts: [{ text: SYSTEM_PROMPT }] };
         } else {
             // For Gemma, prepend the system prompt to the first user message
-            if (history.length > 0 && history[i]?.parts?.[0]) {
+            if (history.length > 0 && history[0]?.parts?.[0]) {
                 history[0].parts[0].text = `[SYSTEM]: ${SYSTEM_PROMPT}\n\n${history[0].parts[0].text}`;
             }
         }
