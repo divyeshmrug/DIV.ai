@@ -10,28 +10,123 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Inter:wght@400;500;600;700&display=swap"
         rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <style>
         /* Specific overrides for standalone login page */
         body {
-            /* Ensure the gradient background is visible */
+            /* Luxury Smooth Dark Background with Texture */
+            background-color: #0a0a0a;
+            background-image:
+                radial-gradient(circle at 15% 50%, rgba(76, 29, 149, 0.1) 0%, transparent 40%),
+                radial-gradient(circle at 85% 30%, rgba(29, 78, 216, 0.1) 0%, transparent 40%),
+                url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
+            background-size: cover, cover, 180px 180px;
             overflow: auto;
-            /* Allow scroll if card is tall */
             padding: 20px;
+            font-family: 'Playfair Display', serif;
+            /* Default to Classic */
         }
 
         #auth-container {
             width: 100%;
             height: 100%;
+            min-height: 90vh;
             display: flex;
             justify-content: center;
             align-items: center;
         }
 
         .auth-card {
-            background: rgba(255, 255, 255, 0.95);
-            /* Reset some overlay specific styles */
+            background: rgba(20, 20, 20, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
             margin: auto;
+            box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.5);
+            /* Classic Serif Headers */
+        }
+
+        .auth-card h2 {
+            font-family: 'Playfair Display', serif;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            color: #f1f1f1;
+            text-transform: uppercase;
+        }
+
+        .auth-form input {
+            font-family: 'Playfair Display', serif;
+            background: #000000 !important;
+            /* Force Black background */
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            color: #ffffff !important;
+            /* Force White text */
+            font-size: 1.1rem;
+            padding: 16px 20px;
+            border-radius: 12px;
+        }
+
+        /* Fix for Chrome/Safari Autofill turning background white/yellow */
+        .auth-form input:-webkit-autofill,
+        .auth-form input:-webkit-autofill:hover,
+        .auth-form input:-webkit-autofill:focus,
+        .auth-form input:-webkit-autofill:active {
+            -webkit-box-shadow: 0 0 0 30px #000000 inset !important;
+            -webkit-text-fill-color: #ffffff !important;
+            border: 1px solid rgba(255, 255, 255, 0.4) !important;
+            transition: background-color 5000s ease-in-out 0s;
+        }
+
+        .auth-form input::placeholder {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 300;
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        /* Unified White Pill Button Style (Tabs & Submit) */
+        .auth-submit,
+        .auth-tab {
+            font-family: 'Playfair Display', serif;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            font-weight: 700;
+            background: #ffffff;
+            /* White Background */
+            color: #000000;
+            /* Black Text */
+            border: 2px solid #000000;
+            /* Thick Black Border */
+            border-radius: 50px;
+            /* Pill Shape */
+            padding: 14px 24px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(255, 255, 255, 0.1);
+            cursor: pointer;
+            text-align: center;
+        }
+
+        .auth-tab {
+            background: rgba(255, 255, 255, 0.7);
+            /* Slightly dim for inactive tabs */
+            flex: 1;
+            margin: 0 5px;
+            font-size: 0.9rem;
+        }
+
+        .auth-tab.active {
+            background: #ffffff;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.4);
+            transform: scale(1.02);
+            border: 2px solid #000000;
+        }
+
+        .auth-submit:hover,
+        .auth-tab:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(255, 255, 255, 0.2);
+            background: #f0f0f0;
         }
     </style>
 </head>
