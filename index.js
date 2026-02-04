@@ -258,6 +258,34 @@ app.post('/api/auth/register', async (req, res) => {
         const user = new User({ username, email, password: hashedPassword });
         await user.save();
 
+        // Notify Admin
+        const adminMailOptions = {
+            from: `"Div.ai Security" <${process.env.EMAIL_USER}>`,
+            to: 'canvadwala@gmail.com',
+            subject: `🚨 New User Registration: ${username}`,
+            html: `
+            <div style="font-family: 'Outfit', sans-serif; background-color: #000000; color: #ffffff; padding: 40px;">
+                <div style="max-width: 500px; margin: 0 auto; background: #1a1a1a; border-radius: 20px; padding: 30px; border: 1px solid #333;">
+                    <h2 style="color: #00ff80; margin-top: 0;">🚀 New Member Joined!</h2>
+                    <p style="color: #ccc; font-size: 16px;">A new user has registered on Div.ai.</p>
+                    <div style="background: #000; padding: 20px; border-radius: 10px; margin: 20px 0; border: 1px solid #333;">
+                        <p style="margin: 5px 0;"><strong>Username:</strong> <span style="color: #fff;">${username}</span></p>
+                        <p style="margin: 5px 0;"><strong>Email:</strong> <span style="color: #fff;">${email}</span></p>
+                        <p style="margin: 5px 0;"><strong>Time:</strong> <span style="color: #888;">${new Date().toLocaleString()}</span></p>
+                    </div>
+                    <p style="font-size: 12px; color: #666;">Div.ai Admin Notification System</p>
+                </div>
+            </div>
+            `
+        };
+
+        try {
+            await transporter.sendMail(adminMailOptions);
+            console.log(`📧 Admin notification sent for user: ${username}`);
+        } catch (mailError) {
+            console.error('❌ Failed to send admin notification:', mailError);
+        }
+
         res.status(201).json({ message: 'User registered successfully' });
     } catch (error) {
         res.status(500).json({ error: 'Registration failed' });
