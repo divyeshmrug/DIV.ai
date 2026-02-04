@@ -102,27 +102,33 @@ app.use((req, res, next) => {
 
 // MongoDB Connection Helper (Caching for Serverless)
 let cachedConnection = null;
+let cachedPromise = null;
+
 const connectDB = async () => {
     if (cachedConnection) return cachedConnection;
+    if (cachedPromise) return cachedPromise;
+
     if (!process.env.MONGODB_URI) {
         throw new Error('MONGODB_URI is missing in Vercel Environment Variables');
     }
 
-    try {
-        console.log('🔄 Connecting to MongoDB...');
-        // Setting bufferCommands to false makes errors appear immediately
-        mongoose.set('bufferCommands', false);
+    cachedPromise = (async () => {
+        try {
+            console.log('🔄 Connecting to MongoDB...');
+            const conn = await mongoose.connect(process.env.MONGODB_URI, {
+                serverSelectionTimeoutMS: 5000,
+            });
+            cachedConnection = conn;
+            console.log('✅ Connected to MongoDB');
+            return conn;
+        } catch (err) {
+            cachedPromise = null;
+            console.error('❌ MongoDB Connection Error:', err.message);
+            throw err;
+        }
+    })();
 
-        cachedConnection = await mongoose.connect(process.env.MONGODB_URI, {
-            serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
-        });
-
-        console.log('✅ Connected to MongoDB');
-        return cachedConnection;
-    } catch (err) {
-        console.error('❌ MongoDB Connection Error:', err.message);
-        throw err;
-    }
+    return cachedPromise;
 };
 
 // Admin User Initialization
