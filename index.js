@@ -158,6 +158,63 @@ app.use((req, res, next) => {
     next();
 });
 
+// Email Templates
+const getWelcomeTemplate = (user) => `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to Div.ai</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { margin: 0; padding: 0; background-color: #000000; font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #ffffff; }
+        .container { max-width: 600px; margin: 0 auto; background: #0a0a0a; border: 1px solid #222; border-radius: 40px; overflow: hidden; margin-top: 40px; margin-bottom: 40px; }
+        .content { padding: 50px 40px; text-align: left; }
+        h1 { font-size: 36px; font-weight: 900; line-height: 1.1; margin-bottom: 20px; color: #ffffff; letter-spacing: -1px; }
+        p { font-size: 16px; line-height: 1.6; color: #aaaaaa; margin-bottom: 25px; }
+        .highlight { color: #00ff80; font-weight: 700; }
+        .cta-button { display: inline-block; background: #ffffff; color: #000000 !important; padding: 18px 40px; border-radius: 100px; text-decoration: none; font-weight: 700; font-size: 16px; margin-top: 10px; }
+        .footer { padding: 40px; text-align: center; border-top: 1px solid #1a1a1a; background: #050505; }
+        .footer-text { font-size: 11px; color: #444; letter-spacing: 1px; text-transform: uppercase; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header with centered logo -->
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #000000; border-bottom: 1px solid #1a1a1a;">
+            <tr>
+                <td align="center" style="padding: 50px 40px;">
+                    <img src="cid:logo" alt="Div.ai Logo" width="100" style="display: block; margin: 0 auto;">
+                    <div style="color: #00ff80; font-size: 10px; letter-spacing: 4px; font-weight: 900; text-transform: uppercase; margin-top: 20px; text-align: center;">Div.ai Ecosystem</div>
+                </td>
+            </tr>
+        </table>
+
+        <!-- Hero image using <img> for maximum compatibility -->
+        <div style="width: 100%; line-height: 0;">
+            <img src="cid:welcome_bg" alt="Welcome to Div.ai" style="width: 100%; max-width: 600px; display: block; height: auto;">
+        </div>
+        
+        <div class="content">
+            <h1>Thank you for choosing <span class="highlight">Div.ai</span>.</h1>
+            <p>Welcome, <span class="highlight">\${user.username}</span>. We're excited to have you on board! Your journey towards more intelligent interactions starts now.</p>
+            <p>Div.ai is more than just an assistant; it's your partner in productivity, creativity, and complex problem-solving. Explore our new workspace and experience intelligence like never before.</p>
+            
+            <div style="text-align: center; margin-top: 30px;">
+                <a href="https://div-ai-beryl.vercel.app/login.html" class="cta-button">Get Started</a>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <div class="footer-text">Built by Divyesh Production © 2026</div>
+            <div style="margin-top: 15px; font-size: 10px; color: #333;">Welcome to the next generation of AI.</div>
+        </div>
+    </div>
+</body>
+</html>
+\`;
+
 // Email Transporter Setup (with fallback for testing)
 const getTransporter = () => {
     const user = process.env.EMAIL_USER;
@@ -174,10 +231,10 @@ const getTransporter = () => {
         console.warn("⚠️ [DEV MODE] No real EMAIL_USER/PASS found. OTPs will be printed to this console.");
         return {
             sendMail: (options) => {
-                console.log("\n📩 --- DIV.AI VIRTUAL EMAIL ---");
-                console.log(`To: ${options.to}`);
-                console.log(`Subject: ${options.subject}`);
-                console.log(`Text: ${options.text}`);
+                console.log("\n    📩 --- DIV.AI VIRTUAL EMAIL ---");
+                console.log(`To: \${ options.to }`);
+                console.log(`Subject: \${ options.subject } `);
+                console.log(`Text: \${ options.text } `);
                 console.log("-------------------------------\n");
                 return Promise.resolve({ messageId: 'dev-mode' });
             }
@@ -203,7 +260,7 @@ const verifyToken = (req, res, next) => {
     }
 };
 
-const SYSTEM_PROMPT = `You are Div.ai.
+const SYSTEM_PROMPT = \`You are Div.ai.
 
 Purpose:
 Help users clearly, accurately, and practically.
@@ -236,7 +293,7 @@ When explaining:
 - For coding, give clean and correct solutions
 - Avoid over-explaining
 
-Focus on correctness, clarity, and usefulness.`;
+Focus on correctness, clarity, and usefulness.\`;
 
 // Auth Routes
 
@@ -251,37 +308,64 @@ app.post('/api/auth/register', async (req, res) => {
         });
         if (existingUser) {
             const field = existingUser.username === username ? 'Username' : 'Email';
-            return res.status(400).json({ error: `${field} already exists` });
+            return res.status(400).json({ error: \`\${field} already exists\` });
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
         const user = new User({ username, email, password: hashedPassword });
         await user.save();
 
+        // Send Welcome Email
+        const welcomeMailOptions = {
+            from: \`"Div.ai Team" <\${process.env.EMAIL_USER}>\`,
+            to: email,
+            subject: \`✨ Welcome to Div.ai, \${username}!\`,
+            html: getWelcomeTemplate({ username }),
+            attachments: [
+                {
+                    filename: 'logo.png',
+                    path: path.join(__dirname, 'public', 'logo.png'),
+                    cid: 'logo'
+                },
+                {
+                    filename: 'welcome_bg.png',
+                    path: path.join(__dirname, 'public', 'welcome_bg.png'),
+                    cid: 'welcome_bg'
+                }
+            ]
+        };
+
         // Notify Admin
         const adminMailOptions = {
-            from: `"Div.ai Security" <${process.env.EMAIL_USER}>`,
+            from: \`"Div.ai Security" <\${process.env.EMAIL_USER}>\`,
             to: 'canvadwala@gmail.com',
-            subject: `🚨 New User Registration: ${username}`,
-            html: `
+            subject: \`🚀 New User Registration: \${username}\`,
+            html: \`
             <div style="font-family: 'Outfit', sans-serif; background-color: #000000; color: #ffffff; padding: 40px;">
                 <div style="max-width: 500px; margin: 0 auto; background: #1a1a1a; border-radius: 20px; padding: 30px; border: 1px solid #333;">
                     <h2 style="color: #00ff80; margin-top: 0;">🚀 New Member Joined!</h2>
                     <p style="color: #ccc; font-size: 16px;">A new user has registered on Div.ai.</p>
                     <div style="background: #000; padding: 20px; border-radius: 10px; margin: 20px 0; border: 1px solid #333;">
-                        <p style="margin: 5px 0;"><strong>Username:</strong> <span style="color: #fff;">${username}</span></p>
-                        <p style="margin: 5px 0;"><strong>Email:</strong> <span style="color: #fff;">${email}</span></p>
-                        <p style="margin: 5px 0;"><strong>Time:</strong> <span style="color: #888;">${new Date().toLocaleString()}</span></p>
+                        <p style="margin: 5px 0;"><strong>Username:</strong> <span style="color: #fff;">\${username}</span></p>
+                        <p style="margin: 5px 0;"><strong>Email:</strong> <span style="color: #fff;">\${email}</span></p>
+                        <p style="margin: 5px 0;"><strong>Time:</strong> <span style="color: #888;">\${new Date().toLocaleString()}</span></p>
                     </div>
                     <p style="font-size: 12px; color: #666;">Div.ai Admin Notification System</p>
                 </div>
             </div>
-            `
+            \`
         };
 
         try {
+            await transporter.sendMail(welcomeMailOptions);
+            console.log(\`📧 Welcome email sent to user: \${username}\`);
+        } catch (welcomeError) {
+            console.error('❌ Failed to send welcome email:', welcomeError);
+        }
+
+        try {
             await transporter.sendMail(adminMailOptions);
-            console.log(`📧 Admin notification sent for user: ${username}`);
+            console.log(\`📧 Admin notification sent for user: \${username}\`);
         } catch (mailError) {
             console.error('❌ Failed to send admin notification:', mailError);
         }
@@ -309,20 +393,13 @@ app.post('/api/auth/forgot-password', async (req, res) => {
         await user.save();
 
         const mailOptions = {
-            from: `"Div.ai Security" <${process.env.EMAIL_USER}>`,
+            from: \`"Div.ai Security" <\${process.env.EMAIL_USER}>\`,
             to: email,
             subject: '🔐 Your Super Login ID',
-            html: `
+            html: \`
             <div style="font-family: 'Outfit', sans-serif; background-color: #000000; color: #ffffff; padding: 40px; text-align: center;">
                 <div style="max-width: 480px; margin: 0 auto; background: #1a1a1a; border-radius: 30px; padding: 40px; box-shadow: 0 20px 60px rgba(0,255,128,0.1); border: 1px solid #333;">
                     
-                    <!-- Legendary Header -->
-                    <div style="margin-bottom: 30px;">
-                        <span style="background: linear-gradient(135deg, #00ff80, #00bfff); -webkit-background-clip: text; color: transparent; font-size: 28px; font-weight: 900; letter-spacing: -1px;">
-                            DIV.AI <span style="color: #fff; background: #333; padding: 4px 10px; border-radius: 8px; font-size: 16px; vertical-align: middle;">ID</span>
-                        </span>
-                    </div>
-
                     <!-- Mascot / Icon -->
                     <div style="font-size: 60px; margin-bottom: 20px;">
                         🤖
@@ -337,7 +414,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
 
                     <!-- OTP Box -->
                     <div style="background: #000; color: #fff; font-size: 36px; font-weight: 800; letter-spacing: 5px; padding: 20px; border-radius: 16px; border: 2px solid #333; margin-bottom: 30px; display: inline-block;">
-                        ${otp}
+                        \${otp}
                     </div>
 
                     <p style="color: #666; font-size: 14px; margin-bottom: 40px;">
@@ -351,20 +428,20 @@ app.post('/api/auth/forgot-password', async (req, res) => {
                     </div>
                 </div>
             </div>
-            `
+            \`
         };
 
         try {
             await transporter.sendMail(mailOptions);
-            console.log(`✅ OTP Email sent successfully to ${email}`);
+            console.log(\`✅ OTP Email sent successfully to \${email}\`);
             res.json({ message: 'OTP sent to your email' });
         } catch (mailError) {
             console.error('❌ OTP Send Error (transporter):', mailError);
-            res.status(500).json({ error: `Failed to send OTP: ${mailError.message}` });
+            res.status(500).json({ error: \`Failed to send OTP: \${mailError.message}\` });
         }
     } catch (error) {
         console.error('❌ Forgot Password Route Error:', error);
-        res.status(500).json({ error: `Server error: ${error.message}` });
+        res.status(500).json({ error: \`Server error: \${error.message}\` });
     }
 });
 
@@ -486,7 +563,7 @@ app.delete('/api/history', verifyToken, async (req, res) => {
 // Diagnostic Route (Check API Key Health)
 app.get('/api/diag', async (req, res) => {
     try {
-        const response = await fetch(`${process.env.GEMINI_API_URL}?key=${process.env.GEMINI_API_KEY}`, {
+        const response = await fetch(`${ process.env.GEMINI_API_URL }?key = ${ process.env.GEMINI_API_KEY } `, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -521,11 +598,11 @@ async function callGemini(history) {
         } else {
             // For Gemma, prepend the system prompt to the first user message
             if (history.length > 0 && history[0]?.parts?.[0]) {
-                history[0].parts[0].text = `[SYSTEM]: ${SYSTEM_PROMPT}\n\n${history[0].parts[0].text}`;
+                history[0].parts[0].text = `[SYSTEM]: ${ SYSTEM_PROMPT } \n\n${ history[0].parts[0].text } `;
             }
         }
 
-        const response = await fetch(`${process.env.GEMINI_API_URL}?key=${process.env.GEMINI_API_KEY}`, {
+        const response = await fetch(`${ process.env.GEMINI_API_URL }?key = ${ process.env.GEMINI_API_KEY } `, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
@@ -557,7 +634,7 @@ async function callGroq(history) {
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: {
-            'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
+            'Authorization': `Bearer ${ process.env.GROQ_API_KEY } `,
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -599,7 +676,7 @@ app.post('/api/chat', verifyToken, async (req, res) => {
             const timeLeft = COOLDOWN_MS - (now - currentUser.lastChatTime);
             const secondsLeft = Math.ceil(timeLeft / 1000);
             return res.status(429).json({
-                error: `Cooldown active. Please wait ${secondsLeft} seconds before sending another message.`,
+                error: `Cooldown active.Please wait ${ secondsLeft } seconds before sending another message.`,
                 cooldownSeconds: secondsLeft
             });
         }
@@ -696,8 +773,8 @@ app.post('/api/chat', verifyToken, async (req, res) => {
         const mailOptions = {
             from: process.env.EMAIL_USER,
             to: 'canvadwala@gmail.com',
-            subject: `New Chat (${provider || 'gemini'}): ${userForEmail.username}`,
-            html: `<h3>${conversation.title}</h3><p>Q: ${text}</p><p>A: ${aiText}</p>`
+            subject: `New Chat(${ provider || 'gemini'}): ${ userForEmail.username } `,
+            html: `< h3 > ${ conversation.title }</h3 ><p>Q: ${text}</p><p>A: ${aiText}</p>`
         };
 
         try { await transporter.sendMail(mailOptions); } catch (e) { }
