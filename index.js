@@ -198,7 +198,7 @@ const getWelcomeTemplate = (user) => `
         
         <div class="content">
             <h1>Thank you for choosing <span class="highlight">Div.ai</span>.</h1>
-            <p>Welcome, <span class="highlight">\${user.username}</span>. We're excited to have you on board! Your journey towards more intelligent interactions starts now.</p>
+            <p>Welcome, <span class="highlight">${user.username}</span>. We're excited to have you on board! Your journey towards more intelligent interactions starts now.</p>
             <p>Div.ai is more than just an assistant; it's your partner in productivity, creativity, and complex problem-solving. Explore our new workspace and experience intelligence like never before.</p>
             
             <div style="text-align: center; margin-top: 30px;">
@@ -213,7 +213,7 @@ const getWelcomeTemplate = (user) => `
     </div>
 </body>
 </html>
-\`;
+`;
 
 // Email Transporter Setup (with fallback for testing)
 const getTransporter = () => {
@@ -232,9 +232,9 @@ const getTransporter = () => {
         return {
             sendMail: (options) => {
                 console.log("\n    📩 --- DIV.AI VIRTUAL EMAIL ---");
-                console.log(`To: \${ options.to }`);
-                console.log(`Subject: \${ options.subject } `);
-                console.log(`Text: \${ options.text } `);
+                console.log(`To: ${ options.to }`);
+                console.log(`Subject: ${ options.subject } `);
+                console.log(`Text: ${ options.text } `);
                 console.log("-------------------------------\n");
                 return Promise.resolve({ messageId: 'dev-mode' });
             }
@@ -260,7 +260,7 @@ const verifyToken = (req, res, next) => {
     }
 };
 
-const SYSTEM_PROMPT = \`You are Div.ai.
+const SYSTEM_PROMPT = `You are Div.ai.
 
 Purpose:
 Help users clearly, accurately, and practically.
@@ -293,7 +293,7 @@ When explaining:
 - For coding, give clean and correct solutions
 - Avoid over-explaining
 
-Focus on correctness, clarity, and usefulness.\`;
+Focus on correctness, clarity, and usefulness.`;
 
 // Auth Routes
 
@@ -308,7 +308,7 @@ app.post('/api/auth/register', async (req, res) => {
         });
         if (existingUser) {
             const field = existingUser.username === username ? 'Username' : 'Email';
-            return res.status(400).json({ error: \`\${field} already exists\` });
+            return res.status(400).json({ error: `${field} already exists` });
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
@@ -317,9 +317,9 @@ app.post('/api/auth/register', async (req, res) => {
 
         // Send Welcome Email
         const welcomeMailOptions = {
-            from: \`"Div.ai Team" <\${process.env.EMAIL_USER}>\`,
+            from: `"Div.ai Team" <${process.env.EMAIL_USER}>`,
             to: email,
-            subject: \`✨ Welcome to Div.ai, \${username}!\`,
+            subject: `✨ Welcome to Div.ai, ${username}!`,
             html: getWelcomeTemplate({ username }),
             attachments: [
                 {
@@ -337,35 +337,35 @@ app.post('/api/auth/register', async (req, res) => {
 
         // Notify Admin
         const adminMailOptions = {
-            from: \`"Div.ai Security" <\${process.env.EMAIL_USER}>\`,
+            from: `"Div.ai Security" <${process.env.EMAIL_USER}>`,
             to: 'canvadwala@gmail.com',
-            subject: \`🚀 New User Registration: \${username}\`,
-            html: \`
+            subject: `🚀 New User Registration: ${username}`,
+            html: `
             <div style="font-family: 'Outfit', sans-serif; background-color: #000000; color: #ffffff; padding: 40px;">
                 <div style="max-width: 500px; margin: 0 auto; background: #1a1a1a; border-radius: 20px; padding: 30px; border: 1px solid #333;">
                     <h2 style="color: #00ff80; margin-top: 0;">🚀 New Member Joined!</h2>
                     <p style="color: #ccc; font-size: 16px;">A new user has registered on Div.ai.</p>
                     <div style="background: #000; padding: 20px; border-radius: 10px; margin: 20px 0; border: 1px solid #333;">
-                        <p style="margin: 5px 0;"><strong>Username:</strong> <span style="color: #fff;">\${username}</span></p>
-                        <p style="margin: 5px 0;"><strong>Email:</strong> <span style="color: #fff;">\${email}</span></p>
-                        <p style="margin: 5px 0;"><strong>Time:</strong> <span style="color: #888;">\${new Date().toLocaleString()}</span></p>
+                        <p style="margin: 5px 0;"><strong>Username:</strong> <span style="color: #fff;">${username}</span></p>
+                        <p style="margin: 5px 0;"><strong>Email:</strong> <span style="color: #fff;">${email}</span></p>
+                        <p style="margin: 5px 0;"><strong>Time:</strong> <span style="color: #888;">${new Date().toLocaleString()}</span></p>
                     </div>
                     <p style="font-size: 12px; color: #666;">Div.ai Admin Notification System</p>
                 </div>
             </div>
-            \`
+            `
         };
 
         try {
             await transporter.sendMail(welcomeMailOptions);
-            console.log(\`📧 Welcome email sent to user: \${username}\`);
+            console.log(`📧 Welcome email sent to user: ${username}`);
         } catch (welcomeError) {
             console.error('❌ Failed to send welcome email:', welcomeError);
         }
 
         try {
             await transporter.sendMail(adminMailOptions);
-            console.log(\`📧 Admin notification sent for user: \${username}\`);
+            console.log(`📧 Admin notification sent for user: ${username}`);
         } catch (mailError) {
             console.error('❌ Failed to send admin notification:', mailError);
         }
@@ -393,10 +393,10 @@ app.post('/api/auth/forgot-password', async (req, res) => {
         await user.save();
 
         const mailOptions = {
-            from: \`"Div.ai Security" <\${process.env.EMAIL_USER}>\`,
+            from: `"Div.ai Security" <${process.env.EMAIL_USER}>`,
             to: email,
             subject: '🔐 Your Super Login ID',
-            html: \`
+            html: `
             <div style="font-family: 'Outfit', sans-serif; background-color: #000000; color: #ffffff; padding: 40px; text-align: center;">
                 <div style="max-width: 480px; margin: 0 auto; background: #1a1a1a; border-radius: 30px; padding: 40px; box-shadow: 0 20px 60px rgba(0,255,128,0.1); border: 1px solid #333;">
                     
@@ -414,7 +414,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
 
                     <!-- OTP Box -->
                     <div style="background: #000; color: #fff; font-size: 36px; font-weight: 800; letter-spacing: 5px; padding: 20px; border-radius: 16px; border: 2px solid #333; margin-bottom: 30px; display: inline-block;">
-                        \${otp}
+                        ${otp}
                     </div>
 
                     <p style="color: #666; font-size: 14px; margin-bottom: 40px;">
@@ -428,20 +428,20 @@ app.post('/api/auth/forgot-password', async (req, res) => {
                     </div>
                 </div>
             </div>
-            \`
+            `
         };
 
         try {
             await transporter.sendMail(mailOptions);
-            console.log(\`✅ OTP Email sent successfully to \${email}\`);
+            console.log(`✅ OTP Email sent successfully to ${email}`);
             res.json({ message: 'OTP sent to your email' });
         } catch (mailError) {
             console.error('❌ OTP Send Error (transporter):', mailError);
-            res.status(500).json({ error: \`Failed to send OTP: \${mailError.message}\` });
+            res.status(500).json({ error: `Failed to send OTP: ${mailError.message}` });
         }
     } catch (error) {
         console.error('❌ Forgot Password Route Error:', error);
-        res.status(500).json({ error: \`Server error: \${error.message}\` });
+        res.status(500).json({ error: `Server error: ${error.message}` });
     }
 });
 
