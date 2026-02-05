@@ -232,9 +232,9 @@ const getTransporter = () => {
         return {
             sendMail: (options) => {
                 console.log("\n    📩 --- DIV.AI VIRTUAL EMAIL ---");
-                console.log(`To: ${ options.to }`);
-                console.log(`Subject: ${ options.subject } `);
-                console.log(`Text: ${ options.text } `);
+                console.log(`To: ${options.to}`);
+                console.log(`Subject: ${options.subject} `);
+                console.log(`Text: ${options.text} `);
                 console.log("-------------------------------\n");
                 return Promise.resolve({ messageId: 'dev-mode' });
             }
@@ -563,7 +563,7 @@ app.delete('/api/history', verifyToken, async (req, res) => {
 // Diagnostic Route (Check API Key Health)
 app.get('/api/diag', async (req, res) => {
     try {
-        const response = await fetch(`${ process.env.GEMINI_API_URL }?key = ${ process.env.GEMINI_API_KEY } `, {
+        const response = await fetch(`${process.env.GEMINI_API_URL}?key=${process.env.GEMINI_API_KEY}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -598,11 +598,11 @@ async function callGemini(history) {
         } else {
             // For Gemma, prepend the system prompt to the first user message
             if (history.length > 0 && history[0]?.parts?.[0]) {
-                history[0].parts[0].text = `[SYSTEM]: ${ SYSTEM_PROMPT } \n\n${ history[0].parts[0].text } `;
+                history[0].parts[0].text = `[SYSTEM]: ${SYSTEM_PROMPT}\n\n${history[0].parts[0].text}`;
             }
         }
 
-        const response = await fetch(`${ process.env.GEMINI_API_URL }?key = ${ process.env.GEMINI_API_KEY } `, {
+        const response = await fetch(`${process.env.GEMINI_API_URL}?key=${process.env.GEMINI_API_KEY}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
@@ -634,7 +634,7 @@ async function callGroq(history) {
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: {
-            'Authorization': `Bearer ${ process.env.GROQ_API_KEY } `,
+            'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -676,7 +676,7 @@ app.post('/api/chat', verifyToken, async (req, res) => {
             const timeLeft = COOLDOWN_MS - (now - currentUser.lastChatTime);
             const secondsLeft = Math.ceil(timeLeft / 1000);
             return res.status(429).json({
-                error: `Cooldown active.Please wait ${ secondsLeft } seconds before sending another message.`,
+                error: `Cooldown active. Please wait ${secondsLeft} seconds before sending another message.`,
                 cooldownSeconds: secondsLeft
             });
         }
@@ -773,8 +773,8 @@ app.post('/api/chat', verifyToken, async (req, res) => {
         const mailOptions = {
             from: process.env.EMAIL_USER,
             to: 'canvadwala@gmail.com',
-            subject: `New Chat(${ provider || 'gemini'}): ${ userForEmail.username } `,
-            html: `< h3 > ${ conversation.title }</h3 ><p>Q: ${text}</p><p>A: ${aiText}</p>`
+            subject: `New Chat(${provider || 'gemini'}): ${userForEmail.username}`,
+            html: `<h3>${conversation.title}</h3><p>Q: ${text}</p><p>A: ${aiText}</p>`
         };
 
         try { await transporter.sendMail(mailOptions); } catch (e) { }
