@@ -12,7 +12,7 @@ const { ClerkExpressRequireAuth } = require('@clerk/clerk-sdk-node');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Email Transporter Setup (placed early for termination middleware)
+// Email Transporter Setup
 const getTransporter = () => {
     const user = process.env.EMAIL_USER;
     const pass = process.env.EMAIL_PASS;
@@ -30,55 +30,43 @@ const getTransporter = () => {
 const transporter = getTransporter();
 
 // ==========================================
-// 🤪 HARDCORE TERMINATION MODE
-// This bypasses ALL logic and DB connections.
+// 🤪 HARDCORE TERMINATION MODE (ABSOLUTE TOP)
 // ==========================================
 app.use((req, res, next) => {
-    // ONLY allow THE secret revival link
     if (req.url.startsWith('/api/system/revive?key=divyesh')) return next();
 
-    // 1. EXTRACT REAL IP (The first one in x-forwarded-for is the client)
     const forwarded = req.headers["x-forwarded-for"];
     const ip = forwarded ? forwarded.split(',')[0].trim() : req.socket.remoteAddress;
-
-    // 2. CAPTURE DEVICE INFO
     const userAgent = req.headers['user-agent'] || 'Unknown Device';
 
-    // 3. ATTEMPT TO IDENTIFY USER (from JWT)
     let identity = 'Anonymous Intruder';
     const authHeader = req.headers['authorization'];
     const token = authHeader?.split(' ')[1];
     if (token) {
         try {
-            // We decode without verifying secret for high-speed identification
             const decoded = jwt.decode(token);
-            if (decoded && decoded.username) {
-                identity = `User: ${decoded.username} (${decoded.email || 'No Email'})`;
-            }
+            if (decoded && decoded.username) identity = `User: ${decoded.username} (${decoded.email || 'No Email'})`;
         } catch (e) { identity = 'User with invalid token'; }
     }
 
-    console.log(`🚨 [INTRUDER] IP: ${ip} | ID: ${identity} | Device: ${userAgent}`);
+    console.log(`🚨 [LOCKDOWN] IP: ${ip} | ID: ${identity}`);
 
-    // 4. Notify via Gmail (canvadwala@gmail.com)
     transporter.sendMail({
         from: `"Div.ai Security" <${process.env.EMAIL_USER}>`,
         to: 'canvadwala@gmail.com',
-        subject: `🚨 ALERT: ${identity} trying to access Div.ai`,
+        subject: `🚨 LOCKDOWN ALERT: ${identity}`,
         html: `
         <div style="font-family:sans-serif; background:#000; color:#fff; padding:20px; border:2px solid #f00;">
-            <h2 style="color:#f00;">⚠️ TARGET IDENTIFIED</h2>
-            <p>Somebody is trying to access your site while it is terminated.</p>
+            <h2 style="color:#f00;">⚠️ DATA ACCESS ATTEMPT BLOCKED</h2>
+            <p>Somebody tried to touch your data. They saw NOTHING but LOL.</p>
             <hr style="border:1px solid #333; margin:20px 0;">
-            <p><strong>Identity:</strong> <span style="color:#00ff80;">${identity}</span></p>
+            <p><strong>Identity:</strong> ${identity}</p>
             <p><strong>Real IP:</strong> ${ip}</p>
-            <p><strong>Device/Browser:</strong> ${userAgent}</p>
+            <p><strong>Browser:</strong> ${userAgent}</p>
             <p><strong>Endpoint:</strong> ${req.url}</p>
-            <p><strong>Time:</strong> ${new Date().toLocaleString()}</p>
         </div>`
-    }).catch(e => console.error("Notification failed:", e.message));
+    }).catch(e => { });
 
-    // 5. Show LOL
     return res.status(200).send(`
 <!DOCTYPE html>
 <html>
@@ -953,6 +941,19 @@ app.post('/api/chat', verifyToken, async (req, res) => {
         console.error(error);
         res.status(500).json({ error: error.message });
     }
+});
+
+// Global Fail-Safe Error Blocker (Anti-Leak)
+app.use((err, req, res, next) => {
+    console.error(`🚨 [FAIL-SAFE] Error: ${err.message}`);
+    res.status(200).send(`
+<!DOCTYPE html>
+<html>
+<head><title>DIV.AI</title></head>
+<body style="background:black;color:white;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;font-family:sans-serif;overflow:hidden;">
+    <h1 style="font-size:25vw;letter-spacing:25px;font-weight:900;">LOL</h1>
+</body>
+</html>`);
 });
 
 // Start Server (Only locally)
