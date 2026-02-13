@@ -189,7 +189,11 @@
             </div>
             <div class="stat-card">
                 <h3>System Health</h3>
-                <p style="color: #34c759; font-size: 1.2rem;">Good</p>
+                <p id="system-health-status" style="color: #34c759; font-size: 1.2rem;">Good</p>
+                <button id="toggle-maintenance-btn"
+                    style="margin-top: 10px; font-size: 0.7rem; padding: 5px 10px; border-radius: 8px; border: 1px solid #ddd; background: #f9f9f9; cursor: pointer;">
+                    Terminate Site
+                </button>
             </div>
         </div>
 
@@ -258,10 +262,62 @@
                     </tr>
                 `).join('');
 
+                // Load System Status
+                loadSystemStatus();
+
             } catch (err) {
                 console.error(err);
             }
         }
+
+        async function loadSystemStatus() {
+            try {
+                const res = await fetch('/api/admin/system/status', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                updateMaintenanceUI(data.isMaintenance);
+            } catch (err) {
+                console.error('Failed to load system status:', err);
+            }
+        }
+
+        function updateMaintenanceUI(isMaintenance) {
+            const statusText = document.getElementById('system-health-status');
+            const toggleBtn = document.getElementById('toggle-maintenance-btn');
+
+            if (isMaintenance) {
+                statusText.innerText = 'TERMINATED';
+                statusText.style.color = '#ff3b30';
+                toggleBtn.innerText = 'Restore Site';
+                toggleBtn.style.background = '#00ff80';
+                toggleBtn.style.color = '#000';
+            } else {
+                statusText.innerText = 'Active';
+                statusText.style.color = '#34c759';
+                toggleBtn.innerText = 'Terminate Site';
+                toggleBtn.style.background = '#f9f9f9';
+                toggleBtn.style.color = '#000';
+            }
+        }
+
+        document.getElementById('toggle-maintenance-btn').addEventListener('click', async () => {
+            const confirmMsg = "Are you sure you want to change the site status?";
+            if (!confirm(confirmMsg)) return;
+
+            try {
+                const res = await fetch('/api/admin/system/toggle', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                updateMaintenanceUI(data.isMaintenance);
+                alert(`Site is now ${data.isMaintenance ? 'TERMINATED' : 'ACTIVE'}`);
+            } catch (err) {
+                console.error('Failed to toggle status:', err);
+                alert('Action failed');
+            }
+        });
 
         loadStats();
     </script>

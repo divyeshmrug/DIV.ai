@@ -182,9 +182,31 @@
                     to Login</a>
             </form>
 
+            <!-- Clerk Social Login -->
+            <div id="clerk-auth-section"
+                style="margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px;">
+                <p style="color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 15px;">Or continue with</p>
+                <div style="display: flex; gap: 10px; justify-content: center;">
+                    <button id="clerk-google-btn" class="auth-submit"
+                        style="flex: 1; padding: 10px; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18"
+                            alt="Google"> Google
+                    </button>
+                    <button id="clerk-microsoft-btn" class="auth-submit"
+                        style="flex: 1; padding: 10px; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo.svg" width="18"
+                            alt="Microsoft"> Microsoft
+                    </button>
+                </div>
+            </div>
+
             <div id="auth-error" class="auth-error"></div>
         </div>
     </div>
+
+    <!-- Clerk SDK -->
+    <script async crossorigin="anonymous"
+        src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js"></script>
 
     <script src="script.js"></script>
 </body>

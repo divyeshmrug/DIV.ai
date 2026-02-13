@@ -7,6 +7,7 @@ const fs = require('fs');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
+const { ClerkExpressRequireAuth } = require('@clerk/clerk-sdk-node');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -95,6 +96,14 @@ const analyticsSchema = new mongoose.Schema({
 });
 const QueryAnalytics = mongoose.model('QueryAnalytics', analyticsSchema);
 
+// System Status Schema
+const systemStatusSchema = new mongoose.Schema({
+    isMaintenance: { type: Boolean, default: false },
+    updatedAt: { type: Date, default: Date.now }
+});
+const SystemStatus = mongoose.model('SystemStatus', systemStatusSchema);
+
+
 // --- INITIALIZATION ---
 
 const seedFAQs = [
@@ -134,6 +143,13 @@ const initSystem = async () => {
             }).save();
             console.log('👤 [ADMIN] Admin user created');
         }
+
+        // Seed System Status
+        const statusExists = await SystemStatus.findOne();
+        if (!statusExists) {
+            await new SystemStatus({ isMaintenance: false }).save();
+            console.log('⚙️ [SYSTEM] Initial system status created');
+        }
     } catch (e) { console.error('❌ Init Error:', e.message); }
 };
 initSystem();
@@ -156,6 +172,41 @@ app.use(async (req, res, next) => {
 app.use((req, res, next) => {
     console.log(`📡 ${req.method} ${req.url}`);
     next();
+});
+
+// Maintenance Middleware (Stealth Mode)
+app.use(async (req, res, next) => {
+    // Skip maintenance check for logo (needed for some UI)
+    if (req.url === '/logo.png') return next();
+
+    // Skip maintenance check for secret revival and admin routes
+    if (req.url.startsWith('/api/system/revive') || req.url.startsWith('/api/admin/system/')) return next();
+
+    try {
+        const system = await SystemStatus.findOne();
+        if (system && system.isMaintenance) {
+            // Check if user is admin (div.ai) - allows admin to still use the site
+            const authHeader = req.headers['authorization'];
+            const token = authHeader?.split(' ')[1];
+            if (token) {
+                try {
+                    const decoded = jwt.verify(token, JWT_SECRET);
+                    if (decoded.username === 'div.ai') {
+                        return next(); // Admin bypassed
+                    }
+                } catch (e) { /* ignore jwt error */ }
+            }
+
+            // STEALTH MODE: Show "LOL" when terminated
+            return res.status(200).send(`
+<body style="background:black;color:white;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;font-family:sans-serif;">
+    <h1 style="font-size:10rem;letter-spacing:10px;">LOL</h1>
+</body>`);
+        }
+        next();
+    } catch (error) {
+        next(); // Proceed if DB check fails
+    }
 });
 
 // Email Templates
@@ -248,8 +299,18 @@ const JWT_SECRET = process.env.JWT_SECRET || 'div_ai_secret_key_123';
 
 // Auth Middleware
 const verifyToken = (req, res, next) => {
-    const token = req.headers['authorization']?.split(' ')[1];
+    const authHeader = req.headers['authorization'];
+    const token = authHeader?.split(' ')[1];
+
     if (!token) return res.status(401).json({ error: 'Access denied. No token provided.' });
+
+    // --- Clerk Session Check ---
+    if (token === 'clerk_session_active') {
+        // This is a simplified check for the demo. 
+        // In production, use ClerkExpressRequireAuth or verify the Clerk token.
+        req.user = { userId: 'clerk_user', username: 'Clerk User' };
+        return next();
+    }
 
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
@@ -530,6 +591,59 @@ app.get('/api/admin/stats', verifyToken, async (req, res) => {
         res.json({ topFaqs, topQueries, totalFaqs, totalHits });
     } catch (error) {
         res.status(500).json({ error: error.message });
+    }
+});
+
+// 4. Get System Status (Protected)
+app.get('/api/admin/system/status', verifyToken, async (req, res) => {
+    if (req.user.username !== 'div.ai') return res.status(403).json({ error: 'Forbidden' });
+    try {
+        const system = await SystemStatus.findOne();
+        res.json({ isMaintenance: system ? system.isMaintenance : false });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// 5. Toggle System Status (Protected)
+app.post('/api/admin/system/toggle', verifyToken, async (req, res) => {
+    if (req.user.username !== 'div.ai') return res.status(403).json({ error: 'Forbidden' });
+    try {
+        const system = await SystemStatus.findOne();
+        if (system) {
+            system.isMaintenance = !system.isMaintenance;
+            system.updatedAt = new Date();
+            await system.save();
+            res.json({ isMaintenance: system.isMaintenance });
+        } else {
+            const newSystem = new SystemStatus({ isMaintenance: true });
+            await newSystem.save();
+            res.json({ isMaintenance: true });
+        }
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// 6. Secret Revival Route (No Token Required)
+app.get('/api/system/revive', async (req, res) => {
+    const { key } = req.query;
+    if (key !== 'divyesh') {
+        return res.status(404).send('Cannot GET /api/system/revive');
+    }
+
+    try {
+        const system = await SystemStatus.findOne();
+        if (system) {
+            system.isMaintenance = false;
+            system.updatedAt = new Date();
+            await system.save();
+        } else {
+            await new SystemStatus({ isMaintenance: false }).save();
+        }
+        res.send('<h1>System Revived!</h1><p>The site is now back online. Redirecting to home...</p><script>setTimeout(() => window.location.href = "/", 2000);</script>');
+    } catch (error) {
+        res.status(500).send('Revival failed: ' + error.message);
     }
 });
 
