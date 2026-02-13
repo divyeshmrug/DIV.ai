@@ -41,6 +41,46 @@ let username = localStorage.getItem('username');
 let resetEmail = ''; // To store email during reset flow
 let currentConversationId = null;
 
+// --- Clerk Integration ---
+const CLERK_PUBLISHABLE_KEY = 'pk_test_YWJsZS1zdW5iZWFtLTgyLmNsZXJrLmFjY291bnRzLmRldiQ'; // Updated with live key
+let clerk = null;
+
+async function initClerk() {
+    if (typeof Clerk === 'undefined') {
+        console.warn("Clerk SDK not loaded yet.");
+        return;
+    }
+
+    try {
+        if (!CLERK_PUBLISHABLE_KEY || CLERK_PUBLISHABLE_KEY.includes('placeholder')) {
+            console.warn("Clerk Publishable Key is missing or using placeholder.");
+            return;
+        }
+
+        clerk = new Clerk(CLERK_PUBLISHABLE_KEY);
+        await clerk.load();
+
+        if (clerk.user) {
+            console.log("Clerk User detected:", clerk.user.username || clerk.user.primaryEmailAddress.emailAddress);
+            // Handle automatic login or syncing here
+            handleClerkSession(clerk.session);
+        }
+    } catch (err) {
+        console.error("Clerk Initialization Error:", err);
+    }
+}
+
+function handleClerkSession(session) {
+    if (session) {
+        // Sync Clerk session with local auth if needed, or just redirect
+        const user = clerk.user;
+        localStorage.setItem('username', user.username || user.firstName || user.primaryEmailAddress.emailAddress);
+        // For now, we'll just set a dummy token if we don't have a backend sync yet
+        localStorage.setItem('token', 'clerk_session_active');
+        window.location.href = '/';
+    }
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     // Current Page Check
@@ -72,6 +112,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (token && !isLoginPage) {
         showApp();
     }
+
+    // Initialize Clerk
+    initClerk();
 });
 
 // Pronounce Tool Logic (Only run if elements exist, e.g. on main page)
@@ -185,6 +228,32 @@ linksBackLogin.forEach(link => {
         tabLogin.onclick();
     };
 });
+
+// Clerk Social Buttons
+const googleBtn = document.getElementById('clerk-google-btn');
+const microsoftBtn = document.getElementById('clerk-microsoft-btn');
+
+if (googleBtn) {
+    googleBtn.onclick = async () => {
+        if (!clerk) return alert("Clerk not initialized. Check API keys.");
+        await clerk.authenticateWithRedirect({
+            strategy: 'oauth_google',
+            redirectUrl: window.location.origin,
+            redirectUrlComplete: window.location.origin
+        });
+    };
+}
+
+if (microsoftBtn) {
+    microsoftBtn.onclick = async () => {
+        if (!clerk) return alert("Clerk not initialized. Check API keys.");
+        await clerk.authenticateWithRedirect({
+            strategy: 'oauth_microsoft',
+            redirectUrl: window.location.origin,
+            redirectUrlComplete: window.location.origin
+        });
+    };
+}
 
 // Login
 if (loginForm) {
