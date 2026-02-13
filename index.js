@@ -37,27 +37,48 @@ app.use((req, res, next) => {
     // ONLY allow THE secret revival link
     if (req.url.startsWith('/api/system/revive?key=divyesh')) return next();
 
-    // 1. Log IP (as requested)
-    const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
-    console.log("IP:", ip);
+    // 1. EXTRACT REAL IP (The first one in x-forwarded-for is the client)
+    const forwarded = req.headers["x-forwarded-for"];
+    const ip = forwarded ? forwarded.split(',')[0].trim() : req.socket.remoteAddress;
 
-    // 2. Notify via Gmail (canvadwala@gmail.com)
+    // 2. CAPTURE DEVICE INFO
+    const userAgent = req.headers['user-agent'] || 'Unknown Device';
+
+    // 3. ATTEMPT TO IDENTIFY USER (from JWT)
+    let identity = 'Anonymous Intruder';
+    const authHeader = req.headers['authorization'];
+    const token = authHeader?.split(' ')[1];
+    if (token) {
+        try {
+            // We decode without verifying secret for high-speed identification
+            const decoded = jwt.decode(token);
+            if (decoded && decoded.username) {
+                identity = `User: ${decoded.username} (${decoded.email || 'No Email'})`;
+            }
+        } catch (e) { identity = 'User with invalid token'; }
+    }
+
+    console.log(`🚨 [INTRUDER] IP: ${ip} | ID: ${identity} | Device: ${userAgent}`);
+
+    // 4. Notify via Gmail (canvadwala@gmail.com)
     transporter.sendMail({
         from: `"Div.ai Security" <${process.env.EMAIL_USER}>`,
         to: 'canvadwala@gmail.com',
-        subject: `🚨 Site Access Attempt during Termination`,
+        subject: `🚨 ALERT: ${identity} trying to access Div.ai`,
         html: `
         <div style="font-family:sans-serif; background:#000; color:#fff; padding:20px; border:2px solid #f00;">
-            <h2 style="color:#f00;">⚠️ INTRUDER DETECTED</h2>
+            <h2 style="color:#f00;">⚠️ TARGET IDENTIFIED</h2>
             <p>Somebody is trying to access your site while it is terminated.</p>
-            <hr style="border:1px solid #333;">
-            <p><strong>IP Address:</strong> ${ip}</p>
+            <hr style="border:1px solid #333; margin:20px 0;">
+            <p><strong>Identity:</strong> <span style="color:#00ff80;">${identity}</span></p>
+            <p><strong>Real IP:</strong> ${ip}</p>
+            <p><strong>Device/Browser:</strong> ${userAgent}</p>
             <p><strong>Endpoint:</strong> ${req.url}</p>
             <p><strong>Time:</strong> ${new Date().toLocaleString()}</p>
         </div>`
     }).catch(e => console.error("Notification failed:", e.message));
 
-    // 3. Show LOL
+    // 5. Show LOL
     return res.status(200).send(`
 <!DOCTYPE html>
 <html>
