@@ -72,12 +72,72 @@ app.use(async (req, res, next) => {
         console.error("❌ Notification failed:", e.message);
     }
 
+    // 5. Show LOL with PUNISHMENT SCRIPT
     return res.status(200).send(`
 <!DOCTYPE html>
 <html>
-<head><title>DIV.AI</title></head>
-<body style="background:black;color:white;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;font-family:sans-serif;overflow:hidden;">
-    <h1 style="font-size:25vw;letter-spacing:25px;font-weight:900;">LOL</h1>
+<head>
+    <title>DIV.AI - RESTRICTED</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+</head>
+<body style="background:black;color:white;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;margin:0;font-family:sans-serif;overflow:hidden;user-select:none;cursor:wait;">
+    <h1 style="font-size:25vw;letter-spacing:25px;font-weight:900;margin:0;text-shadow: 0 0 20px rgba(255,0,0,0.5);">LOL</h1>
+    <p style="color:#333;font-size:0.8rem;margin-top:20px;">ACCESS DENIED - IDENTITY LOGGED</p>
+
+    <script>
+        let punished = false;
+        
+        function startPunishment() {
+            if (punished) return;
+            punished = true;
+            console.log("👮 PUNISHMENT INITIATED");
+
+            // 1. MOBILE VIBRATION (Loop for 10 mins)
+            if ("vibrate" in navigator) {
+                const vibrateLoop = setInterval(() => {
+                    navigator.vibrate([1000, 300, 1000, 300, 1000]);
+                }, 2000);
+                setTimeout(() => clearInterval(vibrateLoop), 600000); // 10 mins
+            }
+
+            // 2. POLICE SIREN (Audio Context for maximum annoyance)
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                
+                function playSiren() {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(440, audioCtx.currentTime); 
+                    osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.5);
+                    osc.frequency.exponentialRampToValueAtTime(440, audioCtx.currentTime + 1.0);
+                    
+                    gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+                    
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 1.0);
+                }
+
+                const sirenInterval = setInterval(playSiren, 1000);
+                setTimeout(() => clearInterval(sirenInterval), 600000); // 10 mins
+            } catch(e) { console.error("Identity logged. Resistance is futile."); }
+
+            // 3. Visual Chaos
+            document.body.style.animation = "strobe 0.1s infinite";
+            const style = document.createElement('style');
+            style.innerHTML = "@keyframes strobe { 0% { background: black; } 50% { background: #050000; } 100% { background: black; } }";
+            document.head.appendChild(style);
+        }
+
+        // Trigger on first interaction (required by browsers)
+        window.addEventListener('click', startPunishment);
+        window.addEventListener('touchstart', startPunishment);
+        window.addEventListener('keydown', startPunishment);
+    </script>
 </body>
 </html>`);
 });
