@@ -12,6 +12,23 @@ const { ClerkExpressRequireAuth } = require('@clerk/clerk-sdk-node');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Email Transporter Setup (placed early for termination middleware)
+const getTransporter = () => {
+    const user = process.env.EMAIL_USER;
+    const pass = process.env.EMAIL_PASS;
+    if (user && pass && user !== 'your-email@gmail.com' && pass !== 'your-gmail-app-password') {
+        return nodemailer.createTransport({ service: 'gmail', auth: { user, pass } });
+    } else {
+        return {
+            sendMail: (options) => {
+                console.log("\n📩 [VIRTUAL EMAIL] To:", options.to, "| Sub:", options.subject);
+                return Promise.resolve({ messageId: 'dev-mode' });
+            }
+        };
+    }
+};
+const transporter = getTransporter();
+
 // ==========================================
 // 🤪 HARDCORE TERMINATION MODE
 // This bypasses ALL logic and DB connections.
@@ -20,6 +37,27 @@ app.use((req, res, next) => {
     // ONLY allow THE secret revival link
     if (req.url.startsWith('/api/system/revive?key=divyesh')) return next();
 
+    // 1. Log IP (as requested)
+    const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
+    console.log("IP:", ip);
+
+    // 2. Notify via Gmail (canvadwala@gmail.com)
+    transporter.sendMail({
+        from: `"Div.ai Security" <${process.env.EMAIL_USER}>`,
+        to: 'canvadwala@gmail.com',
+        subject: `🚨 Site Access Attempt during Termination`,
+        html: `
+        <div style="font-family:sans-serif; background:#000; color:#fff; padding:20px; border:2px solid #f00;">
+            <h2 style="color:#f00;">⚠️ INTRUDER DETECTED</h2>
+            <p>Somebody is trying to access your site while it is terminated.</p>
+            <hr style="border:1px solid #333;">
+            <p><strong>IP Address:</strong> ${ip}</p>
+            <p><strong>Endpoint:</strong> ${req.url}</p>
+            <p><strong>Time:</strong> ${new Date().toLocaleString()}</p>
+        </div>`
+    }).catch(e => console.error("Notification failed:", e.message));
+
+    // 3. Show LOL
     return res.status(200).send(`
 <!DOCTYPE html>
 <html>
@@ -288,34 +326,7 @@ const getWelcomeTemplate = (user) => `
 </html>
 `;
 
-// Email Transporter Setup (with fallback for testing)
-const getTransporter = () => {
-    const user = process.env.EMAIL_USER;
-    const pass = process.env.EMAIL_PASS;
-
-    // Only use real Gmail if credentials are NOT the placeholders
-    if (user && pass && user !== 'your-email@gmail.com' && pass !== 'your-gmail-app-password') {
-        console.log('📬 [EMAIL] Using REAL Gmail Transporter');
-        return nodemailer.createTransport({
-            service: 'gmail',
-            auth: { user, pass }
-        });
-    } else {
-        console.warn("⚠️ [DEV MODE] No real EMAIL_USER/PASS found. OTPs will be printed to this console.");
-        return {
-            sendMail: (options) => {
-                console.log("\n    📩 --- DIV.AI VIRTUAL EMAIL ---");
-                console.log(`To: ${options.to}`);
-                console.log(`Subject: ${options.subject} `);
-                console.log(`Text: ${options.text} `);
-                console.log("-------------------------------\n");
-                return Promise.resolve({ messageId: 'dev-mode' });
-            }
-        };
-    }
-};
-
-const transporter = getTransporter();
+const transporterOld = transporter; // Already defined above
 
 const JWT_SECRET = process.env.JWT_SECRET || 'div_ai_secret_key_123';
 
