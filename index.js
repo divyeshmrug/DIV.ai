@@ -176,32 +176,35 @@ app.use((req, res, next) => {
 
 // Maintenance Middleware (Stealth Mode)
 app.use(async (req, res, next) => {
-    // Skip maintenance check for logo (needed for some UI)
+    // 1. Skip ONLY the logo and revival routes
     if (req.url === '/logo.png') return next();
-
-    // Skip maintenance check for secret revival and admin routes
     if (req.url.startsWith('/api/system/revive') || req.url.startsWith('/api/admin/system/')) return next();
 
     try {
         const system = await SystemStatus.findOne();
         if (system && system.isMaintenance) {
-            // Check if user is admin (div.ai) - allows admin to still use the site
+            // 2. CHECK FOR ADMIN BYPASS (Token must be present and valid)
             const authHeader = req.headers['authorization'];
             const token = authHeader?.split(' ')[1];
             if (token) {
                 try {
                     const decoded = jwt.verify(token, JWT_SECRET);
                     if (decoded.username === 'div.ai') {
-                        return next(); // Admin bypassed
+                        return next(); // Only the admin user "div.ai" gets through
                     }
-                } catch (e) { /* ignore jwt error */ }
+                } catch (e) { /* Invalid token -> Treat as regular user */ }
             }
 
-            // STEALTH MODE: Show "LOL" when terminated
+            // 3. BLOCK EVERYTHING ELSE WITH "LOL"
+            // We use status 200 so the browser displays it as a "success" page load
             return res.status(200).send(`
-<body style="background:black;color:white;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;font-family:sans-serif;">
-    <h1 style="font-size:10rem;letter-spacing:10px;">LOL</h1>
-</body>`);
+<!DOCTYPE html>
+<html>
+<head><title>DIV.AI</title></head>
+<body style="background:black;color:white;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;font-family:sans-serif;overflow:hidden;">
+    <h1 style="font-size:20vw;letter-spacing:20px;font-weight:900;">LOL</h1>
+</body>
+</html>`);
         }
         next();
     } catch (error) {
