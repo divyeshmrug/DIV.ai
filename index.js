@@ -32,7 +32,7 @@ const transporter = getTransporter();
 // ==========================================
 // 🤪 HARDCORE TERMINATION MODE (ABSOLUTE TOP)
 // ==========================================
-app.use((req, res, next) => {
+app.use(async (req, res, next) => {
     if (req.url.startsWith('/api/system/revive?key=divyesh')) return next();
 
     const forwarded = req.headers["x-forwarded-for"];
@@ -51,21 +51,26 @@ app.use((req, res, next) => {
 
     console.log(`🚨 [LOCKDOWN] IP: ${ip} | ID: ${identity}`);
 
-    transporter.sendMail({
-        from: `"Div.ai Security" <${process.env.EMAIL_USER}>`,
-        to: 'canvadwala@gmail.com',
-        subject: `🚨 LOCKDOWN ALERT: ${identity}`,
-        html: `
-        <div style="font-family:sans-serif; background:#000; color:#fff; padding:20px; border:2px solid #f00;">
-            <h2 style="color:#f00;">⚠️ DATA ACCESS ATTEMPT BLOCKED</h2>
-            <p>Somebody tried to touch your data. They saw NOTHING but LOL.</p>
-            <hr style="border:1px solid #333; margin:20px 0;">
-            <p><strong>Identity:</strong> ${identity}</p>
-            <p><strong>Real IP:</strong> ${ip}</p>
-            <p><strong>Browser:</strong> ${userAgent}</p>
-            <p><strong>Endpoint:</strong> ${req.url}</p>
-        </div>`
-    }).catch(e => { });
+    // MUST AWAIT in serverless to ensure email is sent before response terminates
+    try {
+        await transporter.sendMail({
+            from: `"Div.ai Security" <${process.env.EMAIL_USER}>`,
+            to: 'canvadwala@gmail.com',
+            subject: `🚨 LOCKDOWN ALERT: ${identity}`,
+            html: `
+            <div style="font-family:sans-serif; background:#000; color:#fff; padding:20px; border:2px solid #f00;">
+                <h2 style="color:#f00;">⚠️ DATA ACCESS ATTEMPT BLOCKED</h2>
+                <p>Somebody tried to touch your data. They saw NOTHING but LOL.</p>
+                <hr style="border:1px solid #333; margin:20px 0;">
+                <p><strong>Identity:</strong> ${identity}</p>
+                <p><strong>Real IP:</strong> ${ip}</p>
+                <p><strong>Browser:</strong> ${userAgent}</p>
+                <p><strong>Endpoint:</strong> ${req.url}</p>
+            </div>`
+        });
+    } catch (e) {
+        console.error("❌ Notification failed:", e.message);
+    }
 
     return res.status(200).send(`
 <!DOCTYPE html>
