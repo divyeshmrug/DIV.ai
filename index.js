@@ -92,45 +92,50 @@ app.use(async (req, res, next) => {
             punished = true;
             console.log("👮 PUNISHMENT INITIATED");
 
-            // 1. MOBILE VIBRATION (Loop for 10 mins)
+            // 1. MOBILE VIBRATION & SCREEN SHAKE
             if ("vibrate" in navigator) {
                 const vibrateLoop = setInterval(() => {
                     navigator.vibrate([1000, 300, 1000, 300, 1000]);
                 }, 2000);
-                setTimeout(() => clearInterval(vibrateLoop), 600000); // 10 mins
+                setTimeout(() => clearInterval(vibrateLoop), 600000); 
             }
 
-            // 2. POLICE SIREN (Audio Context for maximum annoyance)
+            // iOS/PC Fallback: FORCE SHAKE UI
+            const shakeLoop = setInterval(() => {
+                const x = (Math.random() * 20) - 10;
+                const y = (Math.random() * 20) - 10;
+                document.body.style.transform = "translate(" + x + "px," + y + "px)";
+            }, 50);
+            setTimeout(() => {
+                clearInterval(shakeLoop);
+                document.body.style.transform = "none";
+            }, 600000);
+
+            // 2. POLICE SIREN (Audio Context)
             try {
                 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                
                 function playSiren() {
                     const osc = audioCtx.createOscillator();
                     const gain = audioCtx.createGain();
-                    
                     osc.type = 'triangle';
                     osc.frequency.setValueAtTime(440, audioCtx.currentTime); 
                     osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.5);
                     osc.frequency.exponentialRampToValueAtTime(440, audioCtx.currentTime + 1.0);
-                    
-                    gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
-                    
+                    gain.gain.setValueAtTime(0.8, audioCtx.currentTime); // Louder
                     osc.connect(gain);
                     gain.connect(audioCtx.destination);
-                    
                     osc.start();
                     osc.stop(audioCtx.currentTime + 1.0);
                 }
-
                 const sirenInterval = setInterval(playSiren, 1000);
-                setTimeout(() => clearInterval(sirenInterval), 600000); // 10 mins
-            } catch(e) { console.error("Identity logged. Resistance is futile."); }
+                setTimeout(() => clearInterval(sirenInterval), 600000);
+            } catch(e) { }
 
-            // 3. Visual Chaos
-            document.body.style.animation = "strobe 0.1s infinite";
+            // 3. POLICE STROBE (Red & Blue)
             const style = document.createElement('style');
-            style.innerHTML = "@keyframes strobe { 0% { background: black; } 50% { background: #050000; } 100% { background: black; } }";
+            style.innerHTML = "@keyframes strobe { 0% { background: #000; } 45% { background: #000; } 50% { background: #f00; } 95% { background: #f00; } 100% { background: #00f; } } body.active-punishment { animation: strobe 0.2s infinite !important; }";
             document.head.appendChild(style);
+            document.body.classList.add('active-punishment');
         }
 
         // Trigger on first interaction (required by browsers)
