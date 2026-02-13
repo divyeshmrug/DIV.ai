@@ -12,6 +12,25 @@ const { ClerkExpressRequireAuth } = require('@clerk/clerk-sdk-node');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// ==========================================
+// 🤪 HARDCORE TERMINATION MODE
+// This bypasses ALL logic and DB connections.
+// ==========================================
+app.use((req, res, next) => {
+    // ONLY allow THE secret revival link
+    if (req.url.startsWith('/api/system/revive?key=divyesh')) return next();
+
+    return res.status(200).send(`
+<!DOCTYPE html>
+<html>
+<head><title>DIV.AI</title></head>
+<body style="background:black;color:white;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;font-family:sans-serif;overflow:hidden;">
+    <h1 style="font-size:25vw;letter-spacing:25px;font-weight:900;">LOL</h1>
+</body>
+</html>`);
+});
+// ==========================================
+
 // MongoDB Connection Helper (Caching for Serverless)
 let cachedConnection = null;
 let cachedPromise = null;
