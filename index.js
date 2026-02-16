@@ -398,7 +398,7 @@ const initSystem = async () => {
             const hashedPassword = await bcrypt.hash('111', 10);
             await new User({
                 username: 'div.ai',
-                email: 'divyeshh099@gmail.com',
+                email: 'axiantintelligence@gmail.com',
                 password: hashedPassword
             }).save();
             console.log('👤 [ADMIN] Admin user created');
